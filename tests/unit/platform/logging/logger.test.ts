@@ -268,6 +268,61 @@ describe("createLogger", () => {
     });
   });
 
+  it("sanitizes a direct Symbol argument into valid JSON", () => {
+    const { chunks, logger } = createTestLogger();
+
+    logger.info(Symbol(databaseUrl));
+
+    expect(parseEntries(chunks)).toEqual([
+      expect.objectContaining({ msg: "[Symbol]" }),
+    ]);
+    const output = chunks.join("");
+    expect(output).not.toContain("Symbol(");
+    expect(output).not.toContain(databaseUrl);
+  });
+
+  it("sanitizes a formatted Symbol argument without preserving its description", () => {
+    const { chunks, logger } = createTestLogger();
+
+    logger.info("failed connection: %s", Symbol(databaseUrl));
+
+    expect(parseEntries(chunks)).toEqual([
+      expect.objectContaining({ msg: "failed connection: [Symbol]" }),
+    ]);
+    const output = chunks.join("");
+    expect(output).not.toContain("Symbol(");
+    expect(output).not.toContain(databaseUrl);
+  });
+
+  it("sanitizes Symbol values inside objects, arrays, and bindings", () => {
+    const { chunks, logger } = createTestLogger();
+    const child = logger.child({ marker: Symbol(databaseUrl) });
+
+    child.info(
+      {
+        payload: {
+          marker: Symbol(directUrl),
+          markers: [Symbol(databaseUrl)],
+        },
+      },
+      "nested symbols",
+    );
+
+    expect(parseEntries(chunks)).toEqual([
+      expect.objectContaining({
+        marker: "[Symbol]",
+        payload: {
+          marker: "[Symbol]",
+          markers: ["[Symbol]"],
+        },
+      }),
+    ]);
+    const output = chunks.join("");
+    expect(output).not.toContain("Symbol(");
+    expect(output).not.toContain(databaseUrl);
+    expect(output).not.toContain(directUrl);
+  });
+
   it("sanitizes child bindings, child calls, and descendant bindings", () => {
     const { chunks, logger } = createTestLogger();
     const childBindings = {

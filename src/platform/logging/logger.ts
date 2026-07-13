@@ -12,6 +12,7 @@ import { getServerEnv, type ServerEnv } from "@/platform/env";
 const REDACTED = "[Redacted]";
 const FUNCTION_VALUE = "[Function]";
 const PROXY_VALUE = "[Proxy]";
+const SYMBOL_VALUE = "[Symbol]";
 const SENSITIVE_KEY =
   /(authorization|cookie|password|secret|token|database.?url|direct.?url|body)/i;
 const CHILD_OPTIONS_ERROR =
@@ -64,6 +65,7 @@ function sanitizeValue(
 ): unknown {
   if (typeof value === "string") return redactText(value);
   if (typeof value === "function") return FUNCTION_VALUE;
+  if (typeof value === "symbol") return SYMBOL_VALUE;
   if (typeof value !== "object" || value === null) return value;
   if (isProxy(value)) return PROXY_VALUE;
 
