@@ -1,5 +1,12 @@
 import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
-import { basename, dirname, relative, resolve } from "node:path";
+import {
+  basename,
+  dirname,
+  isAbsolute,
+  relative,
+  resolve,
+  sep,
+} from "node:path";
 import { fileURLToPath } from "node:url";
 
 export interface DocIssue {
@@ -38,6 +45,11 @@ const IGNORED_DIRECTORIES = new Set([
   "playwright-report",
   "test-results",
 ]);
+
+interface LocalLink {
+  target: string;
+  decodedPath: string | null;
+}
 
 function markdownFiles(directory: string): string[] {
   if (!existsSync(directory)) return [];
@@ -79,7 +91,7 @@ function withoutFencedCode(markdown: string): string {
     .join("\n");
 }
 
-function linkTargets(markdown: string): string[] {
+function linkTargets(markdown: string): LocalLink[] {
   const prose = withoutFencedCode(markdown);
 
   return [...prose.matchAll(/\[[^\]]*]\(([^)]+)\)/g)]
@@ -92,7 +104,26 @@ function linkTargets(markdown: string): string[] {
         !target.startsWith("https://") &&
         !target.startsWith("mailto:"),
     )
-    .map((target) => decodeURIComponent(target.split("#", 1)[0] ?? ""));
+    .map((target) => {
+      try {
+        return {
+          target,
+          decodedPath: decodeURIComponent(target.split(/[?#]/, 1)[0] ?? ""),
+        };
+      } catch {
+        return { target, decodedPath: null };
+      }
+    });
+}
+
+function isInsideRoot(root: string, path: string): boolean {
+  const pathFromRoot = relative(resolve(root), path);
+  return (
+    pathFromRoot === "" ||
+    (pathFromRoot !== ".." &&
+      !pathFromRoot.startsWith(`..${sep}`) &&
+      !isAbsolute(pathFromRoot))
+  );
 }
 
 export function checkDocumentation(root: string): DocIssue[] {
@@ -117,12 +148,31 @@ export function checkDocumentation(root: string): DocIssue[] {
 
   for (const document of documents) {
     const markdown = readFileSync(document, "utf8");
-    for (const target of linkTargets(markdown)) {
-      if (!existsSync(resolve(dirname(document), target))) {
+    for (const link of linkTargets(markdown)) {
+      if (link.decodedPath === null) {
         issues.push({
           code: "broken-local-link",
           path: relative(root, document),
-          message: `Update or remove local link "${target}"; it does not resolve.`,
+          message: `Update or remove local link "${link.target}"; its percent encoding is invalid.`,
+        });
+        continue;
+      }
+
+      const target = resolve(dirname(document), link.decodedPath);
+      if (!isInsideRoot(root, target)) {
+        issues.push({
+          code: "broken-local-link",
+          path: relative(root, document),
+          message: `Update or remove local link "${link.target}"; local links must stay inside the repository.`,
+        });
+        continue;
+      }
+
+      if (!existsSync(target)) {
+        issues.push({
+          code: "broken-local-link",
+          path: relative(root, document),
+          message: `Update or remove local link "${link.target}"; it does not resolve.`,
         });
       }
     }
@@ -131,7 +181,7 @@ export function checkDocumentation(root: string): DocIssue[] {
   for (const plan of markdownFiles(resolve(root, "docs/exec-plans/active"))) {
     if (basename(plan) === "README.md") continue;
 
-    const markdown = readFileSync(plan, "utf8");
+    const markdown = withoutFencedCode(readFileSync(plan, "utf8"));
     for (const section of ACTIVE_SECTIONS) {
       if (!new RegExp(`^## ${section}\\s*$`, "im").test(markdown)) {
         issues.push({
@@ -149,8 +199,8 @@ export function checkDocumentation(root: string): DocIssue[] {
     if (!existsSync(index) || !statSync(directory).isDirectory()) continue;
 
     const linked = new Set(
-      linkTargets(readFileSync(index, "utf8")).map((target) =>
-        resolve(directory, target),
+      linkTargets(readFileSync(index, "utf8")).flatMap((link) =>
+        link.decodedPath === null ? [] : [resolve(directory, link.decodedPath)],
       ),
     );
 

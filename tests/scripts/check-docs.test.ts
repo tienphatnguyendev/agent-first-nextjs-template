@@ -6,7 +6,7 @@ import {
   writeFileSync,
 } from "node:fs";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { basename, join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 
 import { checkDocumentation } from "../../scripts/check-docs";
@@ -49,6 +49,7 @@ Not run.
 `;
 
 const temporaryRoots: string[] = [];
+const temporaryFiles: string[] = [];
 
 function writeDocument(root: string, path: string, contents = "# Document\n") {
   const fullPath = join(root, path);
@@ -82,6 +83,9 @@ function createCompleteRepository(): string {
 afterEach(() => {
   for (const root of temporaryRoots.splice(0)) {
     rmSync(root, { force: true, recursive: true });
+  }
+  for (const file of temporaryFiles.splice(0)) {
+    rmSync(file, { force: true });
   }
 });
 
@@ -164,5 +168,84 @@ describe("checkDocumentation", () => {
     }
 
     expect(checkDocumentation(root)).toEqual([]);
+  });
+
+  it("reports malformed percent encoding instead of throwing", () => {
+    const root = createCompleteRepository();
+    writeDocument(root, "README.md", "# Repository\n\n[Bad](bad%ZZ.md)\n");
+
+    expect(checkDocumentation(root)).toContainEqual({
+      code: "broken-local-link",
+      path: "README.md",
+      message:
+        'Update or remove local link "bad%ZZ.md"; its percent encoding is invalid.',
+    });
+  });
+
+  it("rejects a local link that escapes the repository", () => {
+    const root = createCompleteRepository();
+    const outside = join(root, "..", `${basename(root)}-outside.md`);
+    temporaryFiles.push(outside);
+    writeFileSync(outside, "# Outside\n");
+    writeDocument(
+      root,
+      "README.md",
+      `# Repository\n\n[Outside](../${basename(outside)})\n`,
+    );
+
+    expect(checkDocumentation(root)).toContainEqual({
+      code: "broken-local-link",
+      path: "README.md",
+      message: `Update or remove local link "../${basename(outside)}"; local links must stay inside the repository.`,
+    });
+  });
+
+  it("resolves local links without their query or anchor", () => {
+    const root = createCompleteRepository();
+    writeDocument(root, "docs/target file.md");
+    writeDocument(
+      root,
+      "README.md",
+      `# Repository
+
+[Anchor](docs/target%20file.md#section)
+[Query](docs/target%20file.md?view=compact#section)
+[Current document query](?view=compact)
+`,
+    );
+
+    expect(checkDocumentation(root)).toEqual([]);
+  });
+
+  it("does not count active-plan headings inside fenced code", () => {
+    const root = createCompleteRepository();
+    const path = "docs/exec-plans/active/fenced-plan.md";
+    writeDocument(
+      root,
+      path,
+      `# Fenced plan
+
+\`\`\`markdown
+## Status
+## Progress
+## Decisions
+## Verification
+\`\`\`
+`,
+    );
+
+    const issues = checkDocumentation(root).filter(
+      (issue) => issue.path === path,
+    );
+
+    expect(issues).toHaveLength(4);
+    expect(new Set(issues.map((issue) => issue.message))).toEqual(
+      new Set([
+        'Add the "## Status" section.',
+        'Add the "## Progress" section.',
+        'Add the "## Decisions" section.',
+        'Add the "## Verification" section.',
+      ]),
+    );
   });
 });

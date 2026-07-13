@@ -7,14 +7,14 @@ From the repository root:
 
 ```bash
 pnpm install
-cp .env.example .env
+test -e .env || cp .env.example .env
 pnpm setup
 ```
 
-Add local server values to `.env` before setup. Do not overwrite an existing
-`.env`, commit it, or copy its values into documentation. `DATABASE_URL` handles
-application queries. `DIRECT_URL` handles Prisma migrations and administrative
-commands through a direct database connection.
+The guarded copy keeps an existing `.env` unchanged. Add local server values to
+`.env` before setup. Do not commit it or copy its values into documentation.
+`DATABASE_URL` handles application queries. `DIRECT_URL` handles Prisma
+migrations and administrative commands through a direct database connection.
 
 Run `pnpm dev` to start Supabase Database and the Next.js application. This
 foundation uses Supabase Database only. The local environment excludes Auth,

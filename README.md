@@ -14,15 +14,16 @@ Then run:
 
 ```bash
 pnpm install
-cp .env.example .env
+test -e .env || cp .env.example .env
 pnpm setup
 pnpm dev
 ```
 
-Fill `.env` with your local server values before `pnpm setup`. Do not commit
-that file. `DATABASE_URL` serves normal application queries. `DIRECT_URL`
-serves Prisma migrations and administrative commands. Keep both values on the
-server and never print them in logs.
+The guarded copy keeps an existing `.env` unchanged. Fill `.env` with your local
+server values before `pnpm setup`. Do not commit that file. `DATABASE_URL`
+serves normal application queries. `DIRECT_URL` serves Prisma migrations and
+administrative commands. Keep both values on the server and never print them in
+logs.
 
 The local foundation supports one active Supabase environment at a time.
 Separate ports and Supabase project identifiers for simultaneous Git worktrees
