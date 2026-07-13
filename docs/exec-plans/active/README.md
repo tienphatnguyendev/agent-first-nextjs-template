@@ -1,0 +1,11 @@
+# Active Execution Plans
+
+Put current, approved execution plans in this directory. Each plan must contain
+the exact `## Status`, `## Progress`, `## Decisions`, and `## Verification`
+sections defined by the [plan rules](../../PLANS.md).
+
+Link every active plan from this index. Move it to the
+[completed index](../completed/README.md) after all work and verification
+finish.
+
+There are no active repository plans in this directory yet.

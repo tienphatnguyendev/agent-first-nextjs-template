@@ -12,6 +12,7 @@
     "dev:app": "next dev",
     "build": "next build",
     "start": "next start",
+    "docs:check": "node --import tsx scripts/check-docs.ts",
     "lint": "eslint . --max-warnings=0",
     "typecheck": "tsc --noEmit",
     "format": "prettier --write .",
