@@ -9,6 +9,8 @@
     "pnpm": ">=10.0.0"
   },
   "scripts": {
+    "setup": "pnpm db:setup",
+    "dev": "pnpm db:start && pnpm dev:app",
     "dev:app": "next dev",
     "build": "next build",
     "start": "next start",
@@ -20,10 +22,22 @@
     "typecheck": "tsc --noEmit",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
-    "test:unit": "vitest run --config vitest.config.ts"
+    "db:start": "node --import tsx scripts/database.ts start",
+    "db:setup": "node --import tsx scripts/database.ts setup",
+    "db:generate": "prisma generate",
+    "db:deploy": "prisma migrate deploy",
+    "db:migrate": "node --import tsx scripts/database.ts migrate",
+    "db:reset": "node --import tsx scripts/database.ts reset",
+    "test": "pnpm test:unit && pnpm test:integration",
+    "test:unit": "vitest run --config vitest.config.ts",
+    "test:integration": "vitest run --config vitest.integration.config.ts"
   },
   "dependencies": {
+    "@prisma/adapter-pg": "^7.8.0",
+    "@prisma/client": "^7.8.0",
+    "dotenv": "^17.4.2",
     "next": "^16.2.10",
+    "pg": "^8.22.0",
     "pino": "^10.3.1",
     "react": "^19.2.7",
     "react-dom": "^19.2.7",
@@ -34,6 +48,7 @@
     "@testing-library/jest-dom": "^6.9.1",
     "@testing-library/react": "^16.3.2",
     "@types/node": "^26.1.1",
+    "@types/pg": "^8.20.0",
     "@types/react": "^19.2.17",
     "@types/react-dom": "^19.2.3",
     "@vitejs/plugin-react": "^6.0.3",
@@ -42,6 +57,8 @@
     "eslint-config-next": "^16.2.10",
     "jsdom": "^29.1.1",
     "prettier": "^3.9.5",
+    "prisma": "^7.8.0",
+    "supabase": "^2.109.1",
     "tsx": "^4.23.0",
     "typescript": "^5.9.3",
     "vitest": "^4.1.10"

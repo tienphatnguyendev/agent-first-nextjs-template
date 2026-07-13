@@ -1,0 +1,2 @@
+-- Prisma is the only authority for application schema migrations.
+-- This baseline intentionally creates no product tables.
