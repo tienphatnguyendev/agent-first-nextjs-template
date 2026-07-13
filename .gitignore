@@ -1,2 +1,12 @@
 .worktrees/
 .superpowers/
+.env
+.next/
+node_modules/
+src/generated/prisma/
+supabase/.branches/
+supabase/.temp/
+artifacts/
+playwright-report/
+test-results/
+*.tsbuildinfo
