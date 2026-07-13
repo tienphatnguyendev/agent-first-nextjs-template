@@ -1,5 +1,6 @@
 import "server-only";
 
+import { isProxy } from "node:util/types";
 import pino, {
   type Bindings,
   type ChildLoggerOptions,
@@ -12,36 +13,19 @@ import { getServerEnv, type ServerEnv } from "@/platform/env";
 
 const REDACTED = "[Redacted]";
 const FUNCTION_VALUE = "[Function]";
-const ERROR_STACK_GETTER = Object.getOwnPropertyDescriptor(
-  new Error(),
-  "stack",
-)?.get;
-const SENSITIVE_KEYS = new Set([
-  "authorization",
-  "cookie",
-  "password",
-  "secret",
-  "token",
-  "databaseurl",
-  "directurl",
-  "requestbody",
-]);
+const PROXY_VALUE = "[Proxy]";
+const SENSITIVE_KEY =
+  /(authorization|cookie|password|secret|token|database.?url|direct.?url|body)/i;
+const CHILD_OPTIONS_ERROR =
+  "Child logger options are disabled because they can bypass log redaction. " +
+  "Call child(bindings) without options.";
+const CHILD_BINDINGS_ERROR =
+  "Child logger bindings must be a non-Proxy object. " +
+  "Pass a plain object to child(bindings) or setBindings(bindings).";
 
-function readDataProperty(value: object, key: string): unknown {
-  let current: object | null = value;
-  while (current !== null) {
-    const descriptor = Object.getOwnPropertyDescriptor(current, key);
-    if (descriptor) {
-      if ("value" in descriptor) return descriptor.value;
-      const getter = descriptor.get;
-      if (key === "stack" && getter && getter === ERROR_STACK_GETTER) {
-        return getter.call(value) as unknown;
-      }
-      return undefined;
-    }
-    current = Object.getPrototypeOf(current) as object | null;
-  }
-  return undefined;
+function readOwnDataProperty(value: object, key: string): unknown {
+  const descriptor = Object.getOwnPropertyDescriptor(value, key);
+  return descriptor && "value" in descriptor ? descriptor.value : undefined;
 }
 
 function getAvailableKey(
@@ -69,17 +53,24 @@ function sanitizeValue(
   if (typeof value === "string") return redactText(value);
   if (typeof value === "function") return FUNCTION_VALUE;
   if (typeof value !== "object" || value === null) return value;
+  if (isProxy(value)) return PROXY_VALUE;
 
   const existing = seen.get(value);
   if (existing !== undefined) return existing;
 
   if (Array.isArray(value)) {
-    const sanitized = new Array<unknown>(value.length);
+    const length = readOwnDataProperty(value, "length");
+    const sanitized = new Array<unknown>(
+      typeof length === "number" ? length : 0,
+    );
     seen.set(value, sanitized);
-    for (let index = 0; index < value.length; index += 1) {
-      if (index in value) {
-        sanitized[index] = sanitizeValue(value[index], redactText, seen);
-      }
+    for (let index = 0; index < sanitized.length; index += 1) {
+      const descriptor = Object.getOwnPropertyDescriptor(value, String(index));
+      if (!descriptor) continue;
+      sanitized[index] =
+        "value" in descriptor
+          ? sanitizeValue(descriptor.value, redactText, seen)
+          : FUNCTION_VALUE;
     }
     return sanitized;
   }
@@ -88,10 +79,10 @@ function sanitizeValue(
   seen.set(value, sanitized);
 
   if (value instanceof Error) {
-    const name = readDataProperty(value, "name");
-    const message = readDataProperty(value, "message");
-    const stack = readDataProperty(value, "stack");
-    const cause = readDataProperty(value, "cause");
+    const name = readOwnDataProperty(value, "name");
+    const message = readOwnDataProperty(value, "message");
+    const stack = readOwnDataProperty(value, "stack");
+    const cause = readOwnDataProperty(value, "cause");
     sanitized.type = typeof name === "string" ? redactText(name) : "Error";
     sanitized.message = typeof message === "string" ? redactText(message) : "";
     sanitized.stack = typeof stack === "string" ? redactText(stack) : undefined;
@@ -107,7 +98,8 @@ function sanitizeValue(
     ) {
       continue;
     }
-    const sanitizedKey = getAvailableKey(redactText(key), sanitized);
+    const redactedKey = redactText(key);
+    const sanitizedKey = getAvailableKey(redactedKey, sanitized);
     const descriptor = Object.getOwnPropertyDescriptor(value, key);
     if (!descriptor) continue;
     const nestedValue =
@@ -115,7 +107,7 @@ function sanitizeValue(
     Object.defineProperty(sanitized, sanitizedKey, {
       configurable: true,
       enumerable: true,
-      value: SENSITIVE_KEYS.has(key.toLowerCase())
+      value: SENSITIVE_KEY.test(redactedKey)
         ? REDACTED
         : sanitizeValue(nestedValue, redactText, seen),
       writable: true,
@@ -127,19 +119,33 @@ function sanitizeValue(
 
 type Sanitize = (value: unknown) => unknown;
 
+function sanitizeBindings(bindings: Bindings, sanitize: Sanitize): Bindings {
+  const sanitized = sanitize(bindings);
+  if (
+    typeof sanitized !== "object" ||
+    sanitized === null ||
+    Array.isArray(sanitized)
+  ) {
+    throw new TypeError(CHILD_BINDINGS_ERROR);
+  }
+  return sanitized as Bindings;
+}
+
 function wrapLogger(logger: Logger, sanitize: Sanitize): Logger {
   return new Proxy(logger, {
     get(target, property) {
       if (property === "child") {
-        return (bindings: Bindings, options?: ChildLoggerOptions): Logger =>
-          wrapLogger(
-            target.child(sanitize(bindings) as Bindings, options),
+        return (bindings: Bindings, options?: ChildLoggerOptions): Logger => {
+          if (options !== undefined) throw new TypeError(CHILD_OPTIONS_ERROR);
+          return wrapLogger(
+            target.child(sanitizeBindings(bindings, sanitize)),
             sanitize,
           );
+        };
       }
       if (property === "setBindings") {
         return (bindings: Bindings): void => {
-          target.setBindings(sanitize(bindings) as Bindings);
+          target.setBindings(sanitizeBindings(bindings, sanitize));
         };
       }
 

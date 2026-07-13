@@ -4,6 +4,9 @@ import { createLogger } from "@/platform/logging/logger";
 
 const databaseUrl = "postgresql://user:database-secret@db.example.com/app";
 const directUrl = "postgresql://user:direct-secret@db.example.com/app";
+const childOptionsError =
+  "Child logger options are disabled because they can bypass log redaction. " +
+  "Call child(bindings) without options.";
 
 function createTestLogger() {
   const chunks: string[] = [];
@@ -130,7 +133,11 @@ describe("createLogger", () => {
   it("redacts database URLs in messages, arbitrary fields, and errors", () => {
     const { chunks, logger } = createTestLogger();
     const failure = new Error(`direct failure at ${directUrl}`);
-    failure.stack = `Error: direct failure\n    at ${databaseUrl}`;
+    Object.defineProperty(failure, "stack", {
+      configurable: true,
+      value: `Error: direct failure\n    at ${databaseUrl}`,
+      writable: true,
+    });
 
     logger.error(
       {
@@ -349,5 +356,150 @@ describe("createLogger", () => {
       "[Redacted]": "existing-key",
       [`source:${databaseUrl}`]: "prefixed-key",
     });
+  });
+
+  it("rejects child message prefixes before they can reach Pino", () => {
+    const { chunks, logger } = createTestLogger();
+
+    expect(() =>
+      logger.child({}, { msgPrefix: databaseUrl }).info("child message"),
+    ).toThrowError(new TypeError(childOptionsError));
+    expect(chunks).toEqual([]);
+  });
+
+  it("rejects child serializers and formatters without executing them", () => {
+    const { chunks, logger } = createTestLogger();
+    const serializer = vi.fn(() => ({
+      authorization: "Bearer serializer-token",
+      database: databaseUrl,
+    }));
+    const bindingsFormatter = vi.fn(() => ({
+      password: "formatter-password",
+    }));
+    const logFormatter = vi.fn(() => ({
+      token: "formatter-token",
+    }));
+
+    expect(() =>
+      logger
+        .child(
+          {},
+          {
+            serializers: { unsafe: serializer },
+            formatters: {
+              bindings: bindingsFormatter,
+              log: logFormatter,
+            },
+          },
+        )
+        .info({ unsafe: "value" }, "child message"),
+    ).toThrowError(new TypeError(childOptionsError));
+    expect(serializer).not.toHaveBeenCalled();
+    expect(bindingsFormatter).not.toHaveBeenCalled();
+    expect(logFormatter).not.toHaveBeenCalled();
+    expect(chunks).toEqual([]);
+  });
+
+  it("does not execute array index accessors", () => {
+    const { chunks, logger } = createTestLogger();
+    const getter = vi.fn(() => ({
+      authorization: "Bearer array-accessor-token",
+      database: databaseUrl,
+    }));
+    const values = new Array<unknown>(1);
+    Object.defineProperty(values, "0", {
+      configurable: true,
+      enumerable: true,
+      get: getter,
+    });
+
+    logger.info({ values }, "array accessor");
+
+    expect(getter).not.toHaveBeenCalled();
+    expect(parseEntry(chunks)).toMatchObject({ values: ["[Function]"] });
+    expect(chunks.join("")).not.toContain("array-accessor-token");
+    expect(chunks.join("")).not.toContain(databaseUrl);
+  });
+
+  it("does not prepare a lazy Error stack", () => {
+    const { chunks, logger } = createTestLogger();
+    const failure = new Error("prepared failure") as Error & {
+      authorization: string;
+    };
+    failure.authorization = "Bearer prepared-stack-token";
+    const originalPrepareStackTrace = Error.prepareStackTrace;
+    const prepareStackTrace = vi.fn(
+      (error: Error) =>
+        `prepared stack ${(error as typeof failure).authorization}`,
+    );
+
+    try {
+      Error.prepareStackTrace = prepareStackTrace;
+      logger.error({ failure }, "lazy stack");
+    } finally {
+      Error.prepareStackTrace = originalPrepareStackTrace;
+    }
+
+    const entry = parseEntry(chunks);
+    expect(prepareStackTrace).not.toHaveBeenCalled();
+    expect(entry).toMatchObject({
+      failure: {
+        type: "Error",
+        message: "prepared failure",
+        authorization: "[Redacted]",
+      },
+    });
+    expect(entry.failure).not.toHaveProperty("stack");
+    expect(chunks.join("")).not.toContain("prepared-stack-token");
+  });
+
+  it("replaces Proxy values without triggering traps", () => {
+    const { chunks, logger } = createTestLogger();
+    const ownKeys = vi.fn(() => {
+      throw new Error("ownKeys trap executed");
+    });
+    const payload = new Proxy(
+      { authorization: "Bearer proxy-token", database: databaseUrl },
+      { ownKeys },
+    );
+
+    expect(() => logger.info({ payload }, "proxy value")).not.toThrow();
+
+    expect(ownKeys).not.toHaveBeenCalled();
+    expect(parseEntry(chunks)).toMatchObject({ payload: "[Proxy]" });
+    expect(chunks.join("")).not.toContain("proxy-token");
+    expect(chunks.join("")).not.toContain(databaseUrl);
+  });
+
+  it("redacts case-insensitive sensitive key variants", () => {
+    const { chunks, logger } = createTestLogger();
+
+    logger.info(
+      {
+        context: {
+          Authorization: "Bearer variant-token",
+          apiToken: "api-token-value",
+          database_url: "database-alias",
+          "direct-url": "direct-alias",
+          body: { private: "body-value" },
+        },
+      },
+      "key variants",
+    );
+
+    expect(parseEntry(chunks)).toMatchObject({
+      context: {
+        Authorization: "[Redacted]",
+        apiToken: "[Redacted]",
+        database_url: "[Redacted]",
+        "direct-url": "[Redacted]",
+        body: "[Redacted]",
+      },
+    });
+    expect(chunks.join("")).not.toContain("variant-token");
+    expect(chunks.join("")).not.toContain("api-token-value");
+    expect(chunks.join("")).not.toContain("database-alias");
+    expect(chunks.join("")).not.toContain("direct-alias");
+    expect(chunks.join("")).not.toContain("body-value");
   });
 });
