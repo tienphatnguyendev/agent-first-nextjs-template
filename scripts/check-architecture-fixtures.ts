@@ -112,8 +112,16 @@ export function runDependencyCruiser(
     return { exitCode: 1, output: `${stdout}${stderr}${diagnostic}` };
   }
 
+  if (result.status === null) {
+    const diagnostic =
+      `Dependency-cruiser ended without an exit status for ${fixture.name}.\n` +
+      "Repair: rerun pnpm architecture:fixtures and inspect the local environment if it fails again.\n";
+    output.stderr(diagnostic);
+    return { exitCode: 1, output: `${stdout}${stderr}${diagnostic}` };
+  }
+
   return {
-    exitCode: result.status ?? 1,
+    exitCode: result.status,
     output: `${stdout}${stderr}`,
   };
 }

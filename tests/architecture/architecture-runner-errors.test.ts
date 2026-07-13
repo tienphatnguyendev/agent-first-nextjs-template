@@ -85,4 +85,32 @@ describe("architecture fixture runner failures", () => {
     expect(output).toContain("SIGTERM");
     expect(output).toContain("Repair:");
   });
+
+  it("reports when the process ends without an exit status", async () => {
+    const runDependencyCruiser = await loadRunner();
+    expect(runDependencyCruiser).toBeTypeOf("function");
+    if (!runDependencyCruiser) return;
+
+    const stdout: string[] = [];
+    const stderr: string[] = [];
+    const result = runDependencyCruiser(
+      { name: "valid-public-import" },
+      () => ({
+        status: null,
+        signal: null,
+        stdout: undefined,
+        stderr: undefined,
+      }),
+      {
+        stdout: (text) => stdout.push(text),
+        stderr: (text) => stderr.push(text),
+      },
+    );
+    const output = `${stdout.join("")}${stderr.join("")}`;
+
+    expect(result.exitCode).toBe(1);
+    expect(output).toContain("ended without an exit status");
+    expect(output).toContain("Repair:");
+    expect(result.output).toContain("Repair:");
+  });
 });
