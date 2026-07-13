@@ -36,6 +36,24 @@ domain layer does not depend on an outer layer. `src/shared/` cannot depend on
 product modules or platform implementations. Browser code cannot import
 server-only environment, database, or logging code.
 
+## Executable architecture checks
+
+Run `pnpm architecture` to check real source code and the architecture test
+fixtures. A fixture is a small, test-only source tree. Five fixtures contain an
+invalid import on purpose, and one fixture shows a valid public import. The
+normal `src/` scan does not include these fixtures.
+
+The checker enforces public module imports, layer direction, shared-code
+independence, browser and server separation, one-way dependencies, and valid
+import paths. A one-way dependency means that code points in one direction and
+does not form a loop. Every failure names its rule and includes a `Repair:`
+instruction.
+
+Use the smaller commands when you need focused feedback:
+
+- `pnpm architecture:source` checks only the real `src/` tree.
+- `pnpm architecture:fixtures` proves that each rule catches its test case.
+
 ## Request flow
 
 A normal request follows this path:
