@@ -1,9 +1,27 @@
 import { spawnSync } from "node:child_process";
 import path from "node:path";
+import { fileURLToPath } from "node:url";
 
 interface Fixture {
   readonly name: string;
   readonly expectedRule?: string;
+}
+
+interface DependencyCruiserProcessResult {
+  readonly status: number | null;
+  readonly signal: NodeJS.Signals | null;
+  readonly stdout?: string;
+  readonly stderr?: string;
+  readonly error?: Error;
+}
+
+type ExecuteDependencyCruiser = (
+  sourcePath: string,
+) => DependencyCruiserProcessResult;
+
+interface TextOutput {
+  readonly stdout: (text: string) => void;
+  readonly stderr: (text: string) => void;
 }
 
 const fixtures: readonly Fixture[] = [
@@ -32,12 +50,26 @@ const fixtures: readonly Fixture[] = [
 
 const repositoryRoot = path.resolve(import.meta.dirname, "..");
 const fixtureRoot = path.join(repositoryRoot, "tests/architecture/fixtures");
+const dependencyCruiserEntry = fileURLToPath(
+  import.meta.resolve("dependency-cruiser"),
+);
+const dependencyCruiserCli = path.resolve(
+  path.dirname(dependencyCruiserEntry),
+  "../../bin/dependency-cruise.mjs",
+);
 
-function runDependencyCruiser(fixture: Fixture) {
-  const sourcePath = path.join(fixtureRoot, fixture.name, "src");
-  const result = spawnSync(
-    "depcruise",
+const processOutput: TextOutput = {
+  stdout: (text) => process.stdout.write(text),
+  stderr: (text) => process.stderr.write(text),
+};
+
+function executeDependencyCruiser(
+  sourcePath: string,
+): DependencyCruiserProcessResult {
+  return spawnSync(
+    process.execPath,
     [
+      dependencyCruiserCli,
       sourcePath,
       "--config",
       path.join(repositoryRoot, ".dependency-cruiser.cjs"),
@@ -49,20 +81,40 @@ function runDependencyCruiser(fixture: Fixture) {
       encoding: "utf8",
     },
   );
+}
 
-  process.stdout.write(result.stdout);
-  process.stderr.write(result.stderr);
+export function runDependencyCruiser(
+  fixture: Fixture,
+  execute: ExecuteDependencyCruiser = executeDependencyCruiser,
+  output: TextOutput = processOutput,
+) {
+  const sourcePath = path.join(fixtureRoot, fixture.name, "src");
+  const result = execute(sourcePath);
+  const stdout = result.stdout ?? "";
+  const stderr = result.stderr ?? "";
+
+  if (stdout) output.stdout(stdout);
+  if (stderr) output.stderr(stderr);
 
   if (result.error) {
-    process.stderr.write(
+    const diagnostic =
       `Could not run dependency-cruiser for ${fixture.name}: ${result.error.message}\n` +
-        "Repair: install dependencies with pnpm install and run the command again.\n",
-    );
+      "Repair: install dependencies with pnpm install and run the command again.\n";
+    output.stderr(diagnostic);
+    return { exitCode: 1, output: `${stdout}${stderr}${diagnostic}` };
+  }
+
+  if (result.signal) {
+    const diagnostic =
+      `Dependency-cruiser stopped after receiving ${result.signal} for ${fixture.name}.\n` +
+      "Repair: remove the process interruption or resource limit and run the command again.\n";
+    output.stderr(diagnostic);
+    return { exitCode: 1, output: `${stdout}${stderr}${diagnostic}` };
   }
 
   return {
     exitCode: result.status ?? 1,
-    output: `${result.stdout}${result.stderr}`,
+    output: `${stdout}${stderr}`,
   };
 }
 
@@ -101,28 +153,34 @@ function verifyFixture(fixture: Fixture): boolean {
   return true;
 }
 
-const fixtureFlag = process.argv.indexOf("--fixture");
-const selectedName =
-  fixtureFlag === -1 ? undefined : process.argv[fixtureFlag + 1];
+function main(args: readonly string[]) {
+  const fixtureFlag = args.indexOf("--fixture");
+  const selectedName = fixtureFlag === -1 ? undefined : args[fixtureFlag + 1];
 
-if (fixtureFlag !== -1) {
-  const fixture = fixtures.find(({ name }) => name === selectedName);
-  if (!fixture) {
-    process.stderr.write(
-      `Unknown architecture fixture: ${selectedName ?? "<missing>"}.\n` +
-        "Repair: pass one of the fixture directory names under tests/architecture/fixtures.\n",
-    );
-    process.exitCode = 1;
+  if (fixtureFlag !== -1) {
+    const fixture = fixtures.find(({ name }) => name === selectedName);
+    if (!fixture) {
+      process.stderr.write(
+        `Unknown architecture fixture: ${selectedName ?? "<missing>"}.\n` +
+          "Repair: pass one of the fixture directory names under tests/architecture/fixtures.\n",
+      );
+      process.exitCode = 1;
+    } else {
+      process.exitCode = runDependencyCruiser(fixture).exitCode;
+    }
   } else {
-    process.exitCode = runDependencyCruiser(fixture).exitCode;
+    const failures = fixtures.filter((fixture) => !verifyFixture(fixture));
+    if (failures.length > 0) {
+      process.exitCode = 1;
+    } else {
+      process.stdout.write(
+        `Architecture fixtures passed: ${fixtures.length} checked.\n`,
+      );
+    }
   }
-} else {
-  const failures = fixtures.filter((fixture) => !verifyFixture(fixture));
-  if (failures.length > 0) {
-    process.exitCode = 1;
-  } else {
-    process.stdout.write(
-      `Architecture fixtures passed: ${fixtures.length} checked.\n`,
-    );
-  }
+}
+
+const invokedPath = process.argv[1] ? path.resolve(process.argv[1]) : undefined;
+if (invokedPath === fileURLToPath(import.meta.url)) {
+  main(process.argv.slice(2));
 }
