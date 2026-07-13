@@ -7,6 +7,8 @@ const directUrl = "postgresql://user:direct-secret@db.example.com/app";
 const childOptionsError =
   "Child logger options are disabled because they can bypass log redaction. " +
   "Call child(bindings) without options.";
+const logLevels = ["trace", "debug", "info", "warn", "error", "fatal"] as const;
+const approvedLoggerKeys = [...logLevels, "child", "setBindings"].sort();
 
 function createTestLogger() {
   const chunks: string[] = [];
@@ -34,6 +36,48 @@ function parseEntries(chunks: string[]): Record<string, unknown>[] {
     .trim()
     .split("\n")
     .map((line) => JSON.parse(line) as Record<string, unknown>);
+}
+
+type TestLogger = ReturnType<typeof createLogger>;
+
+function childWithOptions(
+  logger: TestLogger,
+  bindings: Record<string, unknown>,
+  options: unknown,
+): TestLogger {
+  return (
+    logger.child as unknown as (
+      bindings: Record<string, unknown>,
+      options: unknown,
+    ) => TestLogger
+  )(bindings, options);
+}
+
+function expectSafeLoggerSurface(logger: unknown): void {
+  expect(Object.getPrototypeOf(logger)).toBeNull();
+  expect(Object.isFrozen(logger)).toBe(true);
+  expect(Object.keys(logger as object).sort()).toEqual(approvedLoggerKeys);
+  const ownKeys = Reflect.ownKeys(logger as object);
+  expect(ownKeys.every((key) => typeof key === "string")).toBe(true);
+  expect(
+    ownKeys.filter((key): key is string => typeof key === "string").sort(),
+  ).toEqual(approvedLoggerKeys);
+
+  const runtime = logger as Record<string, unknown>;
+  for (const unsafeKey of [
+    "onChild",
+    "on",
+    "emit",
+    "addListener",
+    "listeners",
+    "bindings",
+    "flush",
+    "isLevelEnabled",
+    "level",
+    "levels",
+  ]) {
+    expect(unsafeKey in runtime).toBe(false);
+  }
 }
 
 describe("createLogger", () => {
@@ -362,7 +406,9 @@ describe("createLogger", () => {
     const { chunks, logger } = createTestLogger();
 
     expect(() =>
-      logger.child({}, { msgPrefix: databaseUrl }).info("child message"),
+      childWithOptions(logger, {}, { msgPrefix: databaseUrl }).info(
+        "child message",
+      ),
     ).toThrowError(new TypeError(childOptionsError));
     expect(chunks).toEqual([]);
   });
@@ -381,18 +427,17 @@ describe("createLogger", () => {
     }));
 
     expect(() =>
-      logger
-        .child(
-          {},
-          {
-            serializers: { unsafe: serializer },
-            formatters: {
-              bindings: bindingsFormatter,
-              log: logFormatter,
-            },
+      childWithOptions(
+        logger,
+        {},
+        {
+          serializers: { unsafe: serializer },
+          formatters: {
+            bindings: bindingsFormatter,
+            log: logFormatter,
           },
-        )
-        .info({ unsafe: "value" }, "child message"),
+        },
+      ).info({ unsafe: "value" }, "child message"),
     ).toThrowError(new TypeError(childOptionsError));
     expect(serializer).not.toHaveBeenCalled();
     expect(bindingsFormatter).not.toHaveBeenCalled();
@@ -501,5 +546,50 @@ describe("createLogger", () => {
     expect(chunks.join("")).not.toContain("database-alias");
     expect(chunks.join("")).not.toContain("direct-alias");
     expect(chunks.join("")).not.toContain("body-value");
+  });
+
+  it("exposes only the frozen approved logger methods", () => {
+    const { logger } = createTestLogger();
+
+    expectSafeLoggerSurface(logger);
+  });
+
+  it("blocks onChild assignment without affecting child behavior", () => {
+    const { chunks, logger } = createTestLogger();
+    const onChild = vi.fn();
+    const runtime = logger as unknown as Record<string, unknown>;
+
+    expect(() => {
+      runtime.onChild = onChild;
+    }).toThrow(TypeError);
+
+    logger.child({ authorization: "Bearer child-token" }).info("child log");
+
+    expect("onChild" in runtime).toBe(false);
+    expect(onChild).not.toHaveBeenCalled();
+    expect(chunks.join("")).not.toContain("child-token");
+  });
+
+  it("returns only void or another safe facade from approved methods", () => {
+    const { chunks, logger } = createTestLogger();
+
+    for (const level of logLevels) {
+      expect(logger[level](`${level} message`)).toBeUndefined();
+    }
+    expect(
+      logger.setBindings({ authorization: "Bearer root-binding-token" }),
+    ).toBeUndefined();
+
+    const child = logger.child({ password: "child-password" });
+    const grandchild = child.child({ apiToken: "grandchild-token" });
+
+    expectSafeLoggerSurface(child);
+    expectSafeLoggerSurface(grandchild);
+    expect(child).not.toBe(logger);
+    expect(grandchild).not.toBe(child);
+    expect(grandchild.warn("descendant message")).toBeUndefined();
+    expect(chunks.join("")).not.toContain("root-binding-token");
+    expect(chunks.join("")).not.toContain("child-password");
+    expect(chunks.join("")).not.toContain("grandchild-token");
   });
 });

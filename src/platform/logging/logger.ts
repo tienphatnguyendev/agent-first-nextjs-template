@@ -2,10 +2,8 @@ import "server-only";
 
 import { isProxy } from "node:util/types";
 import pino, {
-  type Bindings,
-  type ChildLoggerOptions,
   type DestinationStream,
-  type Logger,
+  type Logger as PinoLogger,
   type LoggerOptions,
 } from "pino";
 
@@ -22,6 +20,20 @@ const CHILD_OPTIONS_ERROR =
 const CHILD_BINDINGS_ERROR =
   "Child logger bindings must be a non-Proxy object. " +
   "Pass a plain object to child(bindings) or setBindings(bindings).";
+type LogLevel = "trace" | "debug" | "info" | "warn" | "error" | "fatal";
+export type LogBindings = Record<string, unknown>;
+export type LogMethod = (...args: unknown[]) => void;
+
+export interface ApplicationLogger {
+  readonly trace: LogMethod;
+  readonly debug: LogMethod;
+  readonly info: LogMethod;
+  readonly warn: LogMethod;
+  readonly error: LogMethod;
+  readonly fatal: LogMethod;
+  readonly child: (bindings: LogBindings) => ApplicationLogger;
+  readonly setBindings: (bindings: LogBindings) => void;
+}
 
 function readOwnDataProperty(value: object, key: string): unknown {
   const descriptor = Object.getOwnPropertyDescriptor(value, key);
@@ -119,7 +131,10 @@ function sanitizeValue(
 
 type Sanitize = (value: unknown) => unknown;
 
-function sanitizeBindings(bindings: Bindings, sanitize: Sanitize): Bindings {
+function sanitizeBindings(
+  bindings: LogBindings,
+  sanitize: Sanitize,
+): LogBindings {
   const sanitized = sanitize(bindings);
   if (
     typeof sanitized !== "object" ||
@@ -128,37 +143,57 @@ function sanitizeBindings(bindings: Bindings, sanitize: Sanitize): Bindings {
   ) {
     throw new TypeError(CHILD_BINDINGS_ERROR);
   }
-  return sanitized as Bindings;
+  return sanitized as LogBindings;
 }
 
-function wrapLogger(logger: Logger, sanitize: Sanitize): Logger {
-  return new Proxy(logger, {
-    get(target, property) {
-      if (property === "child") {
-        return (bindings: Bindings, options?: ChildLoggerOptions): Logger => {
-          if (options !== undefined) throw new TypeError(CHILD_OPTIONS_ERROR);
-          return wrapLogger(
-            target.child(sanitizeBindings(bindings, sanitize)),
-            sanitize,
-          );
-        };
-      }
-      if (property === "setBindings") {
-        return (bindings: Bindings): void => {
-          target.setBindings(sanitizeBindings(bindings, sanitize));
-        };
-      }
+function createLogMethod(
+  logger: PinoLogger,
+  level: LogLevel,
+  redactText: (value: string) => string,
+): LogMethod {
+  const method = logger[level] as LogMethod;
+  return (...inputArgs: unknown[]): void => {
+    const seen = new WeakMap<object, unknown>();
+    const sanitizedArgs = inputArgs.map((value) =>
+      sanitizeValue(value, redactText, seen),
+    );
+    Reflect.apply(method, logger, sanitizedArgs);
+  };
+}
 
-      const member = Reflect.get(target, property, target) as unknown;
-      return typeof member === "function" ? member.bind(target) : member;
-    },
-  });
+function createFacade(
+  logger: PinoLogger,
+  sanitize: Sanitize,
+  redactText: (value: string) => string,
+): ApplicationLogger {
+  const child = (
+    bindings: LogBindings,
+    ...runtimeOptions: unknown[]
+  ): ApplicationLogger => {
+    if (runtimeOptions.length > 0) throw new TypeError(CHILD_OPTIONS_ERROR);
+    const rawChild = logger.child(sanitizeBindings(bindings, sanitize));
+    return createFacade(rawChild, sanitize, redactText);
+  };
+  const setBindings = (bindings: LogBindings): void => {
+    logger.setBindings(sanitizeBindings(bindings, sanitize));
+  };
+  const facade = Object.assign(Object.create(null) as ApplicationLogger, {
+    trace: createLogMethod(logger, "trace", redactText),
+    debug: createLogMethod(logger, "debug", redactText),
+    info: createLogMethod(logger, "info", redactText),
+    warn: createLogMethod(logger, "warn", redactText),
+    error: createLogMethod(logger, "error", redactText),
+    fatal: createLogMethod(logger, "fatal", redactText),
+    child,
+    setBindings,
+  } satisfies ApplicationLogger);
+  return Object.freeze(facade);
 }
 
 export function createLogger(
   env: Pick<ServerEnv, "LOG_LEVEL" | "DATABASE_URL" | "DIRECT_URL">,
   destination?: DestinationStream,
-): Logger {
+): ApplicationLogger {
   const sensitiveValues = [env.DATABASE_URL, env.DIRECT_URL].filter(Boolean);
   const redactText = (value: string) =>
     sensitiveValues.reduce(
@@ -170,29 +205,15 @@ export function createLogger(
   const options: LoggerOptions = {
     level: env.LOG_LEVEL,
     base: undefined,
-    formatters: {
-      bindings(bindings) {
-        return sanitize(bindings) as Record<string, unknown>;
-      },
-    },
-    hooks: {
-      logMethod(inputArgs, method) {
-        const seen = new WeakMap<object, unknown>();
-        const sanitizedArgs = inputArgs.map((value) =>
-          sanitizeValue(value, redactText, seen),
-        ) as Parameters<typeof method>;
-        method.apply(this, sanitizedArgs);
-      },
-    },
   };
 
   const logger = destination ? pino(options, destination) : pino(options);
-  return wrapLogger(logger, sanitize);
+  return createFacade(logger, sanitize, redactText);
 }
 
-let logger: Logger | undefined;
+let logger: ApplicationLogger | undefined;
 
-export function getLogger(): Logger {
+export function getLogger(): ApplicationLogger {
   logger ??= createLogger(getServerEnv());
   return logger;
 }
