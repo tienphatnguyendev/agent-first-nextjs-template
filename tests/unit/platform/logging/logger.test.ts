@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 import { createLogger } from "@/platform/logging/logger";
 
@@ -20,7 +20,17 @@ function createTestLogger() {
 }
 
 function parseEntry(chunks: string[]): Record<string, unknown> {
-  return JSON.parse(chunks.join("")) as Record<string, unknown>;
+  const [entry] = parseEntries(chunks);
+  if (!entry) throw new Error("Expected one log entry");
+  return entry;
+}
+
+function parseEntries(chunks: string[]): Record<string, unknown>[] {
+  return chunks
+    .join("")
+    .trim()
+    .split("\n")
+    .map((line) => JSON.parse(line) as Record<string, unknown>);
 }
 
 describe("createLogger", () => {
@@ -204,6 +214,140 @@ describe("createLogger", () => {
       largeCount: BigInt("9007199254740993"),
       optional: undefined,
       values: [undefined, directUrl],
+    });
+  });
+
+  it("sanitizes child bindings, child calls, and descendant bindings", () => {
+    const { chunks, logger } = createTestLogger();
+    const childBindings = {
+      authorization: "Bearer child-token",
+      context: {
+        password: "child-password",
+        database: databaseUrl,
+      },
+    };
+    const child = logger.child(childBindings);
+    child.setBindings({
+      cookie: "child-session-cookie",
+      directDatabase: directUrl,
+    });
+
+    child.info(
+      {
+        call: {
+          token: "child-call-token",
+          database: directUrl,
+        },
+      },
+      `child call ${databaseUrl}`,
+    );
+    child
+      .child({
+        secret: "grandchild-secret",
+        database: directUrl,
+      })
+      .warn({ password: "grandchild-password" }, "grandchild call");
+
+    const output = chunks.join("");
+    const [childEntry, grandchildEntry] = parseEntries(chunks);
+    expect(childEntry).toMatchObject({
+      authorization: "[Redacted]",
+      context: {
+        password: "[Redacted]",
+        database: "[Redacted]",
+      },
+      cookie: "[Redacted]",
+      directDatabase: "[Redacted]",
+      call: {
+        token: "[Redacted]",
+        database: "[Redacted]",
+      },
+      msg: "child call [Redacted]",
+    });
+    expect(grandchildEntry).toMatchObject({
+      authorization: "[Redacted]",
+      context: {
+        password: "[Redacted]",
+        database: "[Redacted]",
+      },
+      cookie: "[Redacted]",
+      directDatabase: "[Redacted]",
+      secret: "[Redacted]",
+      database: "[Redacted]",
+      password: "[Redacted]",
+    });
+    expect(output).not.toContain("child-token");
+    expect(output).not.toContain("child-password");
+    expect(output).not.toContain("child-session-cookie");
+    expect(output).not.toContain("grandchild-secret");
+    expect(output).not.toContain(databaseUrl);
+    expect(output).not.toContain(directUrl);
+    expect(childBindings).toEqual({
+      authorization: "Bearer child-token",
+      context: {
+        password: "child-password",
+        database: databaseUrl,
+      },
+    });
+  });
+
+  it("replaces function values without invoking a custom toJSON", () => {
+    const { chunks, logger } = createTestLogger();
+    const callback = vi.fn(() => directUrl);
+    const toJSON = vi.fn(() => ({
+      authorization: "Bearer to-json-token",
+      database: databaseUrl,
+    }));
+    const payload = {
+      label: "safe",
+      callback,
+      toJSON,
+    };
+
+    logger.info({ payload }, "function values");
+
+    const output = chunks.join("");
+    expect(parseEntry(chunks)).toMatchObject({
+      payload: {
+        label: "safe",
+        callback: "[Function]",
+        toJSON: "[Function]",
+      },
+    });
+    expect(callback).not.toHaveBeenCalled();
+    expect(toJSON).not.toHaveBeenCalled();
+    expect(output).not.toContain("to-json-token");
+    expect(output).not.toContain(databaseUrl);
+    expect(payload).toEqual({ label: "safe", callback, toJSON });
+  });
+
+  it("redacts sensitive object keys with deterministic collision names", () => {
+    const { chunks, logger } = createTestLogger();
+    const payload = {
+      [databaseUrl]: "database-key",
+      [directUrl]: "direct-key",
+      "[Redacted]": "existing-key",
+      [`source:${databaseUrl}`]: "prefixed-key",
+    };
+
+    logger.info({ payload }, "object keys");
+
+    const output = chunks.join("");
+    expect(parseEntry(chunks)).toMatchObject({
+      payload: {
+        "[Redacted]": "database-key",
+        "[Redacted]#2": "direct-key",
+        "[Redacted]#3": "existing-key",
+        "source:[Redacted]": "prefixed-key",
+      },
+    });
+    expect(output).not.toContain(databaseUrl);
+    expect(output).not.toContain(directUrl);
+    expect(payload).toEqual({
+      [databaseUrl]: "database-key",
+      [directUrl]: "direct-key",
+      "[Redacted]": "existing-key",
+      [`source:${databaseUrl}`]: "prefixed-key",
     });
   });
 });
