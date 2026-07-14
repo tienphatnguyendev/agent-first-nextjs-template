@@ -21,6 +21,7 @@ Start with [README.md](README.md) and [ARCHITECTURE.md](ARCHITECTURE.md).
 - [Quality](docs/QUALITY.md)
 - [Reliability](docs/RELIABILITY.md)
 - [Security](docs/SECURITY.md)
+- [Symphony operator guide](docs/SYMPHONY.md)
 
 Keep product code inside its module. Import another module only through its
 `index.ts`. Never expose database or server environment code to the browser.

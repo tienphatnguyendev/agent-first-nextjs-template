@@ -1,7 +1,10 @@
 import { readFileSync } from "node:fs";
-import { resolve } from "node:path";
+import { dirname, isAbsolute, resolve } from "node:path";
+import { fileURLToPath } from "node:url";
 
 import { describe, expect, it } from "vitest";
+
+import nextConfig from "../../next.config";
 
 function readRepositoryFile(path: string): string {
   return readFileSync(resolve(process.cwd(), path), "utf8");
@@ -173,5 +176,14 @@ describe("delivery configuration", () => {
     );
     expect(packageJson.scripts?.start).toBe("node .next/standalone/server.js");
     expect(packageJson.devDependencies?.["@types/node"]).toBe("^24.13.1");
+  });
+
+  it("pins file tracing to the repository containing next.config.ts", () => {
+    const configDirectory = dirname(
+      fileURLToPath(new URL("../../next.config.ts", import.meta.url)),
+    );
+
+    expect(isAbsolute(nextConfig.outputFileTracingRoot ?? "")).toBe(true);
+    expect(nextConfig.outputFileTracingRoot).toBe(configDirectory);
   });
 });
