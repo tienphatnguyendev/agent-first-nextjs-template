@@ -109,6 +109,22 @@ function hasExactStrings(value: unknown, expected: readonly string[]): boolean {
   );
 }
 
+function hasExactCommandLines(
+  value: unknown,
+  expected: readonly string[],
+): boolean {
+  if (typeof value !== "string") return false;
+
+  const actual = value
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter((line) => line.length > 0);
+  return (
+    actual.length === expected.length &&
+    expected.every((command, index) => actual[index] === command)
+  );
+}
+
 function parseWorkflow(source: string): {
   readonly config: Record<string, unknown>;
   readonly prompt: string;
@@ -206,12 +222,11 @@ function validateWorkflow(config: Record<string, unknown>): ReadinessIssue[] {
   requireValue(
     ["hooks", "after_create"],
     (value) =>
-      typeof value === "string" &&
-      value.includes(
+      hasExactCommandLines(value, [
         `git clone --depth 1 https://github.com/${repository}.git .`,
-      ) &&
-      value.includes("test -e .env || cp .env.example .env") &&
-      value.includes("pnpm install --frozen-lockfile"),
+        "test -e .env || cp .env.example .env",
+        "pnpm install --frozen-lockfile",
+      ]),
     "the approved shallow clone, guarded .env copy, and locked install commands",
   );
   requireValue(
@@ -223,10 +238,8 @@ function validateWorkflow(config: Record<string, unknown>): ReadinessIssue[] {
     requireValue(
       ["hooks", hook],
       (value) =>
-        typeof value === "string" &&
-        value.includes("supabase stop") &&
-        value.includes("--no-backup"),
-      "a Supabase stop command with --no-backup",
+        hasExactCommandLines(value, ["pnpm exec supabase stop --no-backup"]),
+      '"pnpm exec supabase stop --no-backup"',
     );
   }
   requireValue(

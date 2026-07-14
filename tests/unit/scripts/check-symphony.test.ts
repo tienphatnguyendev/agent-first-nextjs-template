@@ -204,6 +204,91 @@ describe("checkSymphonyReadiness", () => {
     );
   });
 
+  it.each([
+    {
+      name: "commands hidden in comments",
+      replacement: `    # git clone --depth 1 https://github.com/${repository}.git .
+    # test -e .env || cp .env.example .env
+    # pnpm install --frozen-lockfile`,
+    },
+    {
+      name: "an extra arbitrary command",
+      replacement: `    git clone --depth 1 https://github.com/${repository}.git .
+    test -e .env || cp .env.example .env
+    pnpm install --frozen-lockfile
+    curl https://example.invalid/extra-command`,
+    },
+  ])("rejects after_create with $name", async ({ replacement }) => {
+    const approved = `    git clone --depth 1 https://github.com/${repository}.git .
+    test -e .env || cp .env.example .env
+    pnpm install --frozen-lockfile`;
+    writeFileSync(
+      join(root, "WORKFLOW.md"),
+      validWorkflow.replace(approved, replacement),
+    );
+
+    const issues = await checkSymphonyReadiness(options());
+
+    expect(issues).toContainEqual(
+      expect.objectContaining({
+        code: "unsafe-workflow",
+        message: expect.stringContaining("hooks.after_create"),
+      }),
+    );
+  });
+
+  it.each([
+    ["after_run", 'echo "pnpm exec supabase stop --no-backup"'],
+    ["after_run", "# pnpm exec supabase stop --no-backup"],
+    ["before_remove", 'echo "pnpm exec supabase stop --no-backup"'],
+    ["before_remove", "# pnpm exec supabase stop --no-backup"],
+  ])(
+    "rejects cleanup text hidden in %s echo or comments",
+    async (hook, text) => {
+      const approved = `${hook}: pnpm exec supabase stop --no-backup`;
+      const replacement = `${hook}: |\n    ${text}`;
+      writeFileSync(
+        join(root, "WORKFLOW.md"),
+        validWorkflow.replace(approved, replacement),
+      );
+
+      const issues = await checkSymphonyReadiness(options());
+
+      expect(issues).toContainEqual(
+        expect.objectContaining({
+          code: "unsafe-workflow",
+          message: expect.stringContaining(`hooks.${hook}`),
+        }),
+      );
+    },
+  );
+
+  it("allows surrounding whitespace and blank lines in approved hook scripts", async () => {
+    const approved = `    git clone --depth 1 https://github.com/${repository}.git .
+    test -e .env || cp .env.example .env
+    pnpm install --frozen-lockfile`;
+    const trailingSpaces = "  ";
+    const spaced = `
+      git clone --depth 1 https://github.com/${repository}.git .${trailingSpaces}
+
+      test -e .env || cp .env.example .env${trailingSpaces}
+      pnpm install --frozen-lockfile${trailingSpaces}
+`;
+    const workflow = validWorkflow
+      .replace(approved, spaced)
+      .replace(
+        "after_run: pnpm exec supabase stop --no-backup",
+        'after_run: "  pnpm exec supabase stop --no-backup  "',
+      )
+      .replace(
+        "before_remove: pnpm exec supabase stop --no-backup",
+        "before_remove: |\n\n      pnpm exec supabase stop --no-backup  \n",
+      );
+    writeFileSync(join(root, "WORKFLOW.md"), workflow);
+
+    await expect(checkSymphonyReadiness(options())).resolves.toEqual([]);
+  });
+
   it("reports absent Linear environment variables without disclosing values", async () => {
     const issues = await checkSymphonyReadiness({
       ...options(),
@@ -300,12 +385,15 @@ describe("checkSymphonyReadiness", () => {
     );
   });
 
-  it("reports each missing required CI context", async () => {
+  it.each([
+    ["Build secure container", ["Verify foundation"]],
+    ["Verify foundation", ["Build secure container"]],
+  ])("reports a missing %s CI context", async (missingContext, contexts) => {
     const protection = {
       ...validProtection,
       required_status_checks: {
         strict: true,
-        contexts: ["Verify foundation"],
+        contexts,
       },
     };
     const issues = await checkSymphonyReadiness(
@@ -321,7 +409,7 @@ describe("checkSymphonyReadiness", () => {
     expect(issues).toContainEqual(
       expect.objectContaining({
         code: "missing-ci-context",
-        message: expect.stringContaining("Build secure container"),
+        message: expect.stringContaining(missingContext),
       }),
     );
   });
