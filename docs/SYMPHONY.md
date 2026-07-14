@@ -186,7 +186,7 @@ Symphony keeps the key so its Linear tracker can authenticate. The readiness
 checker validates that the variable exists but removes it from every tool
 process that it starts. `WORKFLOW.md` also removes it from every repository
 hook and from the Codex App Server. Those children keep normal values such as
-`PATH`, but they cannot read the Linear credential.
+`PATH`, but they do not inherit the Linear credential.
 
 ## Reserve the Supabase window
 
