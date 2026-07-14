@@ -23,6 +23,7 @@ function createBuildFixture(): string {
     join(root, ".next", "static", "chunks", "app.js"),
     "safe-chunk",
   );
+  writeFileSync(join(root, ".next", "standalone", "server.js"), "server");
   return root;
 }
 
@@ -82,6 +83,27 @@ describe("prepareStandaloneOutput", () => {
     try {
       expect(() => prepareStandaloneOutput(root)).toThrow(
         "Standalone output is incomplete: missing public. " +
+          "Repair: run pnpm run build and resolve the earlier Next.js error.",
+      );
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+
+  it("rejects a standalone build without a top-level server entrypoint", () => {
+    const root = createBuildFixture();
+    rmSync(join(root, ".next", "standalone", "server.js"));
+    mkdirSync(join(root, ".next", "standalone", "nested"), {
+      recursive: true,
+    });
+    writeFileSync(
+      join(root, ".next", "standalone", "nested", "server.js"),
+      "nested-server",
+    );
+
+    try {
+      expect(() => prepareStandaloneOutput(root)).toThrow(
+        "Standalone output is incomplete: missing .next/standalone/server.js. " +
           "Repair: run pnpm run build and resolve the earlier Next.js error.",
       );
     } finally {

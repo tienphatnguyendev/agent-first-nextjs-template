@@ -2,7 +2,11 @@ import { cpSync, existsSync, rmSync } from "node:fs";
 import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
-const requiredPaths = ["public", ".next/static", ".next/standalone"] as const;
+const requiredPaths = [
+  "public",
+  ".next/static",
+  ".next/standalone/server.js",
+] as const;
 
 export function prepareStandaloneOutput(root = process.cwd()): void {
   for (const path of requiredPaths) {
