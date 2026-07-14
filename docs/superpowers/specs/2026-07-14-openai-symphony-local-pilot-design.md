@@ -83,13 +83,19 @@ same Supabase project identifier and ports.
 The pilot will use these fixed Linear values:
 
 - Workspace: `Agentic Coding OS`
-- Team and project: `Symphony Pilot`
+- Team: `Symphony Pilot`
+- Project: `Agentic Coding OS`
 - Team key: `SYM`
 - Required dispatch label: `symphony`
-- Project slug: supplied through `LINEAR_PROJECT_SLUG`
+- Project slug: `agentic-coding-os-0d02fd16cb9c`
 
 Symphony must ignore an issue unless it belongs to the configured project and
 has the `symphony` label. The label creates a deliberate dispatch gate.
+The project URL is
+`https://linear.app/aaron-solo/project/agentic-coding-os-0d02fd16cb9c/overview`.
+The pinned Symphony revision does not expand an environment variable in
+`tracker.project_slug`, so the repository must store this non-secret slug as a
+literal. `LINEAR_API_KEY` remains the only Linear secret.
 
 | State | Category | Required behavior |
 | --- | --- | --- |
@@ -147,8 +153,9 @@ coding agent only on a controlled developer machine. It applies these limits:
   dialog. The workflow must report a blocker instead of weakening a safety
   control.
 - Use the core shell environment with Codex's default secret filtering.
-- Keep `LINEAR_API_KEY` and `LINEAR_PROJECT_SLUG` only in the Symphony process
-  environment. Never write, print, or commit their values.
+- Keep `LINEAR_API_KEY` only in the Symphony process environment. Never write,
+  print, or commit its value. Keep the non-secret project slug literal in the
+  workflow because the pinned Symphony revision does not expand that field.
 - Bind the dashboard to loopback so another machine cannot reach it.
 - Require a feature branch, a pull request, and both GitHub checks named
   `Verify foundation` and `Build secure container`.
@@ -237,9 +244,9 @@ adoption decision.
 ## 11. Delivery Order
 
 Repository work comes first: record this design, add the readiness command,
-and add the workflow contract and runbook. Repository review must finish before
-the operator changes GitHub or Linear, installs the external service, or starts
-the daemon.
+and add the workflow contract and runbook. The operator may prepare trusted
+local prerequisites, but repository review and Linear policy verification must
+finish before the daemon starts or an issue dispatches.
 
 The [implementation plan](../plans/2026-07-14-openai-symphony-pilot.md) defines
 the detailed tasks. The

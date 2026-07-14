@@ -1,6 +1,6 @@
-import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { join, resolve } from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
@@ -13,7 +13,8 @@ import {
 const pinnedRevision = "4cbe3a9699a73b862466c0b157ceca0c1985d6d7";
 const repository = "tienphatnguyendev/agent-first-nextjs-template";
 const apiKey = "linear-api-key-that-must-stay-private";
-const projectSlug = "linear-project-slug-that-must-stay-private";
+const projectSlug = "agentic-coding-os-0d02fd16cb9c";
+const repositoryRoot = resolve(import.meta.dirname, "../../..");
 
 const validProtection = {
   required_status_checks: {
@@ -30,7 +31,7 @@ const validWorkflow = `---
 tracker:
   kind: linear
   api_key: $LINEAR_API_KEY
-  project_slug: $LINEAR_PROJECT_SLUG
+  project_slug: ${projectSlug}
   required_labels:
     - symphony
   active_states:
@@ -45,6 +46,7 @@ tracker:
 polling:
   interval_ms: 30000
 server:
+  host: 127.0.0.1
   port: 4000
 workspace:
   root: ~/code/symphony-workspaces
@@ -125,7 +127,6 @@ describe("checkSymphonyReadiness", () => {
       homeDir: "/Users/tester",
       env: {
         LINEAR_API_KEY: apiKey,
-        LINEAR_PROJECT_SLUG: projectSlug,
       },
       runCommand,
     } as const;
@@ -133,6 +134,38 @@ describe("checkSymphonyReadiness", () => {
 
   it("accepts the complete safe pilot configuration and host state", async () => {
     await expect(checkSymphonyReadiness(options())).resolves.toEqual([]);
+  });
+
+  it("accepts the real repository workflow contract and unattended prompt", async () => {
+    const workflow = readFileSync(join(repositoryRoot, "WORKFLOW.md"), "utf8");
+    const runCommand = createCommandRunner();
+
+    await expect(
+      checkSymphonyReadiness({ ...options(runCommand), cwd: repositoryRoot }),
+    ).resolves.toEqual([]);
+    expect(runCommand).toHaveBeenCalledWith("git", [
+      "-C",
+      "/Users/tester/code/openai-symphony",
+      "rev-parse",
+      "HEAD",
+    ]);
+    expect(workflow).toContain(pinnedRevision);
+    expect(workflow).toContain(`project_slug: ${projectSlug}`);
+    expect(workflow).not.toContain("$LINEAR_PROJECT_SLUG");
+    expect(workflow).toContain("host: 127.0.0.1");
+    expect(workflow).toContain("AGENTS.md");
+    expect(workflow).toContain("one Linear workpad comment");
+    expect(workflow).toContain("test-driven development");
+    expect(workflow).toContain("focused checks");
+    expect(workflow).toContain("pnpm verify");
+    expect(workflow).toContain("feature branch");
+    expect(workflow).toContain("pull request");
+    expect(workflow).toContain("CI evidence");
+    expect(workflow).toContain("Human Review");
+    expect(workflow).toContain("Rework");
+    expect(workflow).toContain("blockers");
+    expect(workflow).toContain("Never merge");
+    expect(workflow).toContain("Never push directly to `main`");
   });
 
   it("reports a missing workflow", async () => {
@@ -159,14 +192,15 @@ describe("checkSymphonyReadiness", () => {
     ["tracker kind", "kind: linear", "kind: github"],
     ["API key indirection", "api_key: $LINEAR_API_KEY", "api_key: literal"],
     [
-      "project slug indirection",
+      "literal project slug",
+      `project_slug: ${projectSlug}`,
       "project_slug: $LINEAR_PROJECT_SLUG",
-      "project_slug: literal",
     ],
     ["dispatch label", "- symphony", "- unrestricted"],
     ["active states", "    - Rework\n", "    - Human Review\n"],
     ["terminal states", "    - Duplicate\n", "    - Human Review\n"],
     ["poll interval", "interval_ms: 30000", "interval_ms: 5000"],
+    ["dashboard host", "host: 127.0.0.1", "host: 0.0.0.0"],
     ["dashboard port", "port: 4000", "port: 4001"],
     [
       "workspace root",
@@ -289,7 +323,16 @@ describe("checkSymphonyReadiness", () => {
     await expect(checkSymphonyReadiness(options())).resolves.toEqual([]);
   });
 
-  it("reports absent Linear environment variables without disclosing values", async () => {
+  it("does not require a project slug environment variable", async () => {
+    await expect(
+      checkSymphonyReadiness({
+        ...options(),
+        env: { LINEAR_API_KEY: apiKey },
+      }),
+    ).resolves.toEqual([]);
+  });
+
+  it("reports an absent Linear API key without disclosing values", async () => {
     const issues = await checkSymphonyReadiness({
       ...options(),
       env: {
@@ -299,9 +342,8 @@ describe("checkSymphonyReadiness", () => {
     const output = issues.map((issue) => issue.message).join("\n");
 
     expect(output).toContain("LINEAR_API_KEY");
-    expect(output).toContain("LINEAR_PROJECT_SLUG");
+    expect(output).not.toContain("LINEAR_PROJECT_SLUG");
     expect(output).not.toContain(apiKey);
-    expect(output).not.toContain(projectSlug);
     expect(output).not.toContain("unrelated-value-that-must-stay-private");
   });
 
@@ -462,7 +504,6 @@ describe("runSymphonyReadiness", () => {
       homeDir: "/Users/tester",
       env: {
         LINEAR_API_KEY: apiKey,
-        LINEAR_PROJECT_SLUG: projectSlug,
       },
       runCommand: createCommandRunner(),
     } as const;

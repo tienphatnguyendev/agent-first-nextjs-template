@@ -34,6 +34,7 @@ export interface SymphonyReadinessOptions {
 
 const pinnedRevision = "4cbe3a9699a73b862466c0b157ceca0c1985d6d7";
 const repository = "tienphatnguyendev/agent-first-nextjs-template";
+const linearProjectSlug = "agentic-coding-os-0d02fd16cb9c";
 const requiredCiContexts = [
   "Verify foundation",
   "Build secure container",
@@ -189,8 +190,8 @@ function validateWorkflow(config: Record<string, unknown>): ReadinessIssue[] {
   );
   requireValue(
     ["tracker", "project_slug"],
-    (value) => value === "$LINEAR_PROJECT_SLUG",
-    '"$LINEAR_PROJECT_SLUG"',
+    (value) => value === linearProjectSlug,
+    `"${linearProjectSlug}"`,
   );
   requireValue(
     ["tracker", "required_labels"],
@@ -212,6 +213,11 @@ function validateWorkflow(config: Record<string, unknown>): ReadinessIssue[] {
     ["polling", "interval_ms"],
     (value) => value === 30_000,
     "30000",
+  );
+  requireValue(
+    ["server", "host"],
+    (value) => value === "127.0.0.1",
+    '"127.0.0.1"',
   );
   requireValue(["server", "port"], (value) => value === 4_000, "4000");
   requireValue(
@@ -418,15 +424,13 @@ export async function checkSymphonyReadiness(
     }
   }
 
-  for (const variable of ["LINEAR_API_KEY", "LINEAR_PROJECT_SLUG"] as const) {
-    if (!environment[variable]?.trim()) {
-      issues.push(
-        issue(
-          "missing-environment",
-          `Set ${variable} in the Symphony process environment.`,
-        ),
-      );
-    }
+  if (!environment.LINEAR_API_KEY?.trim()) {
+    issues.push(
+      issue(
+        "missing-environment",
+        "Set LINEAR_API_KEY in the Symphony process environment.",
+      ),
+    );
   }
 
   const toolResults = await Promise.all(

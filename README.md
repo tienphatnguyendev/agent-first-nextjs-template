@@ -32,6 +32,9 @@ are outside this foundation. Coordinate use of the one local database.
 Read [development guidance](docs/DEVELOPMENT.md) for focused commands and
 database changes.
 
+The optional local Symphony pilot runs outside the application. Read the
+[Symphony operator guide](docs/SYMPHONY.md) before you configure or start it.
+
 ## Stable commands
 
 - `pnpm run setup` prepares Supabase Database, Prisma, and Playwright.
@@ -87,6 +90,7 @@ for investigation. The workflow does not publish or deploy the image.
 - [Quality](docs/QUALITY.md)
 - [Reliability](docs/RELIABILITY.md)
 - [Security](docs/SECURITY.md)
+- [Symphony operator guide](docs/SYMPHONY.md)
 - [Design documents](docs/design-docs/README.md)
 - [Product specifications](docs/product-specs/README.md)
 

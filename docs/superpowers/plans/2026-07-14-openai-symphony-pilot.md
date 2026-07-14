@@ -11,14 +11,14 @@
 ## Global Constraints
 
 - Pin OpenAI Symphony to commit `4cbe3a9699a73b862466c0b157ceca0c1985d6d7`.
-- Use Linear workspace `Agentic Coding OS`, team and project `Symphony Pilot`, team key `SYM`, and required label `symphony`.
+- Use Linear workspace `Agentic Coding OS`, team `Symphony Pilot`, project `Agentic Coding OS`, authoritative project URL `https://linear.app/aaron-solo/project/agentic-coding-os-0d02fd16cb9c/overview`, project slug `agentic-coding-os-0d02fd16cb9c`, team key `SYM`, and required label `symphony`.
 - Treat `Todo`, `In Progress`, and `Rework` as active; `Human Review` as non-active and non-terminal; and `Done`, `Closed`, `Cancelled`, and `Duplicate` as terminal.
 - Use `~/code/openai-symphony` for the external checkout, `~/code/symphony-workspaces` for issue workspaces, and `127.0.0.1:4000` for the dashboard.
 - Limit Symphony to one concurrent agent because every checkout shares the same Supabase ports and project identifier.
 - Run `pnpm run setup` before agent work and stop Supabase after each run and before workspace deletion.
 - Use Codex `workspace-write`, network access, `approval_policy: never`, and a core shell environment with default secret filtering.
 - Require pull requests and both GitHub CI jobs; never merge automatically or push directly to `main`.
-- Keep `LINEAR_API_KEY` and `LINEAR_PROJECT_SLUG` in the Symphony process environment only. Never print or commit them.
+- Keep `LINEAR_API_KEY` in the Symphony process environment only. Never print or commit it. Store the non-secret project slug literally because the pinned Symphony revision does not expand that field.
 - Do not add a product API, database schema, Next.js module, background worker, production-container component, or deployment dependency.
 
 ---
@@ -56,7 +56,7 @@
 - Produce `checkSymphonyReadiness(options): Promise<readonly ReadinessIssue[]>`, where every issue has `code` and `message` strings.
 - Produce `runSymphonyReadiness(options): Promise<number>` for the CLI exit code.
 - Add package command `pnpm symphony:check`.
-- Consume root `WORKFLOW.md`, `LINEAR_API_KEY`, `LINEAR_PROJECT_SLUG`, local command results, and GitHub branch-protection JSON.
+- Consume root `WORKFLOW.md`, `LINEAR_API_KEY`, local command results, and GitHub branch-protection JSON.
 
 - [ ] Add `yaml` as a direct development dependency.
 - [ ] Write failing Vitest cases for missing workflow, invalid front matter, unsafe workflow values, absent secrets without value disclosure, missing tools, wrong pinned commit, failed `gh` authentication, missing branch protection or CI contexts, and an already-running `supabase_db_agentic-coding-os` container.
@@ -79,7 +79,7 @@
 **Interfaces:**
 - `WORKFLOW.md` is the repository-owned Symphony contract.
 - `docs/SYMPHONY.md` is the operator runbook for setup, preflight, start, stop, recovery, and cleanup.
-- The workflow consumes `LINEAR_API_KEY` and `LINEAR_PROJECT_SLUG` through explicit `$VAR` indirection.
+- The workflow consumes `LINEAR_API_KEY` through explicit `$VAR` indirection and stores the non-secret project slug `agentic-coding-os-0d02fd16cb9c` literally for compatibility with the pinned Symphony revision.
 
 - [ ] Add a failing contract test that loads the real root `WORKFLOW.md` and checks the approved tracker states, label, poll interval `30000`, workspace root, hook timeout `1200000`, concurrency `1`, pinned upstream revision, Codex policies, and prompt rules.
 - [ ] Run the focused test and verify it fails because `WORKFLOW.md` does not exist.
@@ -98,12 +98,12 @@
 - `~/code/openai-symphony`
 - `~/code/symphony-workspaces`
 
-- [ ] Repair `gh` authentication for the existing personal account.
-- [ ] Protect `main`: require pull requests, require `Verify foundation` and `Build secure container`, block force pushes and deletion, and apply protection to administrators without requiring a second reviewer account.
-- [ ] Create the Linear workspace, team, project, `symphony` label, `Human Review` state, and `Rework` state. Export the generated project slug and personal API key only in the Symphony shell.
-- [ ] Install `mise`, clone OpenAI Symphony at the pinned commit, trust its version configuration, install its Erlang/Elixir versions, run `mix setup`, and build `bin/symphony`.
+- [x] Repair `gh` authentication for the existing personal account.
+- [x] Protect `main`: require pull requests, require `Verify foundation` and `Build secure container`, block force pushes and deletion, and apply protection to administrators without requiring a second reviewer account.
+- [ ] Confirm the Linear workspace, `Symphony Pilot` team, `Agentic Coding OS` project, `symphony` label, `Human Review` state, and `Rework` state. Export only the personal API key in the Symphony shell; keep the authoritative non-secret project slug in `WORKFLOW.md`.
+- [x] Install `mise`, clone OpenAI Symphony at the pinned commit, trust its version configuration, install its Erlang/Elixir versions, run `mix setup`, and build `bin/symphony`.
 - [ ] Create the workspace/log directories and run `pnpm symphony:check`; expect exit code 0 before starting the daemon.
-- [ ] Start Symphony with the repository's absolute `WORKFLOW.md`, external log root, and `--port 4000`. Confirm `/api/v1/state` responds only on loopback.
+- [ ] Start Symphony with `--i-understand-that-this-will-be-running-without-the-usual-guardrails`, the repository's absolute `WORKFLOW.md`, external log root, and `--port 4000`. Confirm `/api/v1/state` responds only on loopback.
 - [ ] Update the active execution plan with exact external versions and verification evidence.
 
 ### Task 5: Run and Evaluate the Three-Issue Pilot
@@ -121,22 +121,35 @@
 
 ## Status
 
-Active. Repository implementation begins in an isolated worktree. External setup follows repository review.
+Active. Repository implementation continues in an isolated worktree. GitHub
+authentication and protection and the external pinned build are verified.
+Linear policy, readiness, and daemon startup remain pending.
 
 ## Progress
 
 - 2026-07-14: Approved the phased local Elixir pilot design and created this implementation plan.
+- 2026-07-14: Verified GitHub authentication and `main` protection.
+- 2026-07-14: Verified `mise` 2026.7.5, the pinned checkout, Erlang 28.5,
+  Elixir 1.19.5-otp-28, `mix setup`, `mix build`, `bin/symphony`, and the
+  external workspace and log directories. Hex reported multiple advisories in
+  the pinned locked dependencies, so the pilot remains preview-only.
 
 ## Decisions
 
 - Keep Symphony external to the product application.
-- Use a dedicated Linear workspace/project and a required dispatch label.
+- Use the `Symphony Pilot` Linear team, the `Agentic Coding OS` project with
+  literal slug `agentic-coding-os-0d02fd16cb9c`, and a required dispatch label.
+- Keep the preview service on a trusted project and bind its dashboard to
+  loopback. The dependency advisories prevent any claim of production safety.
 - Use one fully unattended local agent with human PR merging and enforced branch protection.
 - Run three varied, useful issues before deciding on a hardened implementation.
 
 ## Verification
 
 - Baseline: `env COREPACK_HOME=/tmp/corepack pnpm test:unit` passed 130 tests on 2026-07-14.
+- GitHub authentication and `main` protection were verified on 2026-07-14.
+- The pinned external build and runtime directories were verified on
+  2026-07-14; Hex dependency advisories remain a preview-only risk.
 - Required before repository handoff: `pnpm verify`.
 - Required before daemon startup: `pnpm symphony:check`.
 - Required before pilot success: all live checks in Task 5.
