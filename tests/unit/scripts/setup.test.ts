@@ -71,6 +71,7 @@ describe("runSetup", () => {
 
     expect(
       runSetup({
+        ci: false,
         cwd: root,
         spawn,
         npmExecPath: "/tools/pnpm.cjs",
