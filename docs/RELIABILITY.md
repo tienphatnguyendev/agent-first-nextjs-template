@@ -10,11 +10,16 @@ specific input messages. Expected business failures use stable public error
 codes. Unexpected failures return a generic response and keep technical details
 in server logs.
 
-The health endpoint checks application startup and database availability. It
-returns only a simple status and no database details. Integration tests exercise
-the real local Supabase PostgreSQL boundary. Production build and Playwright
-checks exercise the built application. `pnpm verify` combines these checks; see
-[QUALITY.md](QUALITY.md) for the order.
+The `GET /api/health` endpoint checks database availability. A successful check
+returns HTTP 200 with `{ "status": "ok" }`. If the database is unavailable, the
+endpoint logs the internal failure and returns HTTP 503 with only
+`{ "status": "unavailable", "correlationId": "..." }`. Both responses include
+the same correlation ID in the `x-correlation-id` header. The endpoint never
+returns database hosts, credentials, errors, stack traces, migration details,
+or query data. Integration tests exercise the real local Supabase PostgreSQL
+boundary. Production build and Playwright checks exercise the built
+application. `pnpm verify` combines these checks; see [QUALITY.md](QUALITY.md)
+for the order.
 
 Prisma migrations run as a separate release step before a new application
 version starts. A failed migration must stop the release. Prisma remains the

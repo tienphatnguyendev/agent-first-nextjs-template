@@ -23,6 +23,13 @@ request data. Browser responses must not contain SQL, stack traces, internal
 paths, or secret values. Use correlation IDs to connect safe error responses to
 server evidence.
 
+The `GET /api/health` route passes database failures only to the safe server
+logger. Its HTTP 503 response contains only an unavailable status and a
+correlation ID. The response must not contain a database host, credentials, the
+raw error, a stack trace, migration details, or query data. Both healthy and
+unavailable responses copy the request correlation ID into the
+`x-correlation-id` header.
+
 Use `pnpm lint`, `pnpm typecheck`, architecture checks, unit tests, integration
 tests, and `pnpm verify` to check these controls. A passing check does not replace
 a security review for a real product.
