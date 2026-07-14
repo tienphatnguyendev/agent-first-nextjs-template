@@ -18,9 +18,9 @@ Each check must print a direct instruction that explains how to repair a
 failure. CI calls the same repository commands and keeps relevant reports,
 application logs, screenshots, and browser traces when a check fails.
 
-Task 9 adds the `test:e2e:run` command used by the ninth check. Until that
-command exists, run the first eight commands separately and stop after
-`pnpm build` instead of running `pnpm verify`.
+The ninth check runs the existing production build through Playwright. Run
+`pnpm test:e2e` when you need a new build first. Browser checks run sequentially
+with one Chromium profile and never reuse an existing server.
 
 Unit and integration test runs keep readable results in the terminal and write
 JUnit XML reports to `artifacts/test-results/unit.xml` and
@@ -28,6 +28,12 @@ JUnit XML reports to `artifacts/test-results/unit.xml` and
 format that CI systems can read. Run `pnpm artifacts:prepare` when a tool needs
 the report directories before a test starts. This command creates missing
 directories and keeps all existing evidence.
+
+Playwright writes JUnit XML to `artifacts/test-results/playwright.xml`, its HTML
+report to `artifacts/playwright/report/`, and browser attachments to
+`artifacts/playwright/test-results/`. Failed browser tests retain a screenshot,
+trace, and video. The production wrapper copies application output to both the
+terminal and `artifacts/application.log`.
 
 Use focused checks from [DEVELOPMENT.md](DEVELOPMENT.md) while you edit. Add a
 test at the lowest useful level: unit tests for isolated behavior, integration

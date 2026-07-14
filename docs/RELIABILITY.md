@@ -21,6 +21,14 @@ boundary. Production build and Playwright checks exercise the built
 application. `pnpm verify` combines these checks; see [QUALITY.md](QUALITY.md)
 for the order.
 
+Playwright starts the production application with `next start`; it never uses
+the development server or reuses an existing process. The server wrapper copies
+standard output and error output to the terminal and
+`artifacts/application.log`. It forwards `SIGINT` and `SIGTERM` once, stops the
+child server when the wrapper exits, and reports the exact failed command with
+repair guidance. Browser failures retain a screenshot, trace, video, HTML
+report, JUnit report, and application log for investigation.
+
 Prisma migrations run as a separate release step before a new application
 version starts. A failed migration must stop the release. Prisma remains the
 only schema and migration authority; do not add `supabase/migrations/`.

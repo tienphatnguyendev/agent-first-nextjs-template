@@ -4,7 +4,7 @@ Start with [README.md](README.md) and [ARCHITECTURE.md](ARCHITECTURE.md).
 
 ## Stable commands
 
-- `pnpm setup` prepares Supabase Database, Prisma, and Playwright.
+- `pnpm run setup` prepares Supabase Database, Prisma, and Playwright.
 - `pnpm dev` starts the database and application.
 - `pnpm verify` runs every required check.
 - `pnpm test` runs unit and integration tests.

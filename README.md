@@ -15,12 +15,12 @@ Then run:
 ```bash
 pnpm install
 test -e .env || cp .env.example .env
-pnpm setup
+pnpm run setup
 pnpm dev
 ```
 
 The guarded copy keeps an existing `.env` unchanged. Fill `.env` with your local
-server values before `pnpm setup`. Do not commit that file. `DATABASE_URL`
+server values before `pnpm run setup`. Do not commit that file. `DATABASE_URL`
 serves normal application queries. `DIRECT_URL` serves Prisma migrations and
 administrative commands. Keep both values on the server and never print them in
 logs.
@@ -34,7 +34,7 @@ database changes.
 
 ## Stable commands
 
-- `pnpm setup` prepares Supabase Database, Prisma, and Playwright.
+- `pnpm run setup` prepares Supabase Database, Prisma, and Playwright.
 - `pnpm dev` starts the local database and Next.js.
 - `pnpm verify` runs the complete repository check in a stable order.
 - `pnpm test` runs unit and integration tests.

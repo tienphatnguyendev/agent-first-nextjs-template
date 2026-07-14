@@ -8,11 +8,17 @@ From the repository root:
 ```bash
 pnpm install
 test -e .env || cp .env.example .env
-pnpm setup
+pnpm run setup
 ```
 
 The guarded copy keeps an existing `.env` unchanged. Add local server values to
 `.env` before setup. Do not commit it or copy its values into documentation.
+The setup script never creates, copies, or overwrites `.env`. It stops and tells
+you to create the file when it is missing. Always include `run` in
+`pnpm run setup`: pnpm also has an unrelated built-in command named `setup`.
+Repository setup starts the database, generates and deploys Prisma files, and
+installs only Playwright Chromium. In CI, it also installs Chromium system
+dependencies.
 `DATABASE_URL` handles application queries. `DIRECT_URL` handles Prisma
 migrations and administrative commands through a direct database connection.
 
@@ -36,10 +42,21 @@ pnpm build
 
 Run `pnpm test` when a change affects the database or more than one layer. Run
 `pnpm test:e2e` when a change affects browser behavior or the production build.
-After the repository includes the `test:e2e:run` command, run `pnpm verify`
-before you finish. It runs all required checks in the order defined in
-[QUALITY.md](QUALITY.md). Before that browser command exists, run each check
-through `pnpm build` separately.
+Run `pnpm verify` before you finish. It runs all required checks in the order
+defined in [QUALITY.md](QUALITY.md).
+
+`pnpm test:e2e` creates a fresh production build, starts it with `next start`,
+and runs the browser smoke tests. Use `pnpm test:e2e:run` only when a current
+production build already exists. Playwright never reuses an existing server,
+runs one Chromium worker, and waits for the database-backed health endpoint
+before starting tests. Stop any process that already uses port 3000 first.
+
+Playwright writes its HTML report to `artifacts/playwright/report/`, test
+attachments to `artifacts/playwright/test-results/`, JUnit XML to
+`artifacts/test-results/playwright.xml`, and production output to
+`artifacts/application.log`. A failed browser test keeps its screenshot, trace,
+and video. These files may contain page or log data, so never put secrets in
+browser-visible values or application output.
 
 Unit and integration tests show readable output in the terminal and also write
 stable JUnit XML reports under `artifacts/test-results/`. Run

@@ -9,11 +9,12 @@
     "pnpm": ">=10.0.0"
   },
   "scripts": {
-    "setup": "pnpm db:setup",
+    "setup": "node --import tsx scripts/setup.ts",
     "dev": "pnpm db:start && pnpm dev:app",
     "dev:app": "next dev",
     "build": "next build",
     "start": "next start",
+    "start:e2e-server": "node --import tsx scripts/start-production-for-e2e.ts",
     "architecture:source": "depcruise src --config .dependency-cruiser.cjs --output-type err-long",
     "architecture:fixtures": "node --import tsx scripts/check-architecture-fixtures.ts",
     "architecture": "pnpm architecture:source && pnpm architecture:fixtures",
@@ -32,7 +33,9 @@
     "db:reset": "node --import tsx scripts/database.ts reset",
     "test": "pnpm test:unit && pnpm test:integration",
     "test:unit": "vitest run --config vitest.config.ts",
-    "test:integration": "vitest run --config vitest.integration.config.ts"
+    "test:integration": "vitest run --config vitest.integration.config.ts",
+    "test:e2e": "pnpm run build && pnpm run test:e2e:run",
+    "test:e2e:run": "playwright test"
   },
   "dependencies": {
     "@prisma/adapter-pg": "^7.8.0",
@@ -47,6 +50,7 @@
     "zod": "^4.4.3"
   },
   "devDependencies": {
+    "@playwright/test": "^1.61.1",
     "@testing-library/jest-dom": "^6.9.1",
     "@testing-library/react": "^16.3.2",
     "@types/node": "^26.1.1",
