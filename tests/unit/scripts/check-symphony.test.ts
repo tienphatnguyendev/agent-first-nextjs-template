@@ -27,17 +27,65 @@ const validProtection = {
   allow_deletions: { enabled: false },
 };
 
-const validPrompt = `Read repository guidance.
-Maintain one Linear workpad comment.
-Use test-driven development.
-Run focused checks, then run pnpm verify.
-Work on a feature branch and open a pull request.
-Record CI evidence.
-Move the issue to Human Review.
-If the issue returns for Rework, resume existing work.
-Record blockers.
-Never merge the pull request.
-Never push directly to main.`;
+const requiredPromptClauses = [
+  {
+    behavior: "repository guidance before file changes",
+    clause:
+      "Read `AGENTS.md`, `README.md`, `ARCHITECTURE.md`, and all repository guidance linked from them before you change files.",
+  },
+  {
+    behavior: "exactly one Linear workpad",
+    clause:
+      "Maintain one Linear workpad comment for the issue. Create it if none exists. Update that same comment with your plan, progress, test results, branch, pull request, CI evidence, and blockers. Do not create a second workpad comment.",
+  },
+  {
+    behavior: "resuming Rework with review feedback",
+    clause:
+      "If it is in `Rework`, resume from the existing workspace, branch, workpad, and pull request. Read the review feedback, record the new plan in the workpad, and then move the issue to `In Progress`.",
+  },
+  {
+    behavior: "test-driven RED and minimal GREEN evidence",
+    clause:
+      "Use test-driven development. Add a focused failing test first, run it, and confirm that it fails for the expected reason. Then make the smallest change that passes the test. Keep the RED and GREEN evidence in the workpad.",
+  },
+  {
+    behavior: "focused checks before pnpm verify",
+    clause:
+      "Run focused checks while you work. Run `pnpm verify` after the focused checks pass. Record the exact commands and results in the workpad.",
+  },
+  {
+    behavior: "feature branch delivery without main pushes",
+    clause:
+      "Work only on a feature branch for this issue. Commit the verified change, push that feature branch, and open or update its pull request. Never push directly to `main`.",
+  },
+  {
+    behavior: "both named CI checks with evidence",
+    clause:
+      "Confirm the pull request has passing `Verify foundation` and `Build secure container` checks. Add their CI evidence to the workpad.",
+  },
+  {
+    behavior: "Human Review only after final evidence",
+    clause:
+      "Move the issue to `Human Review` only after the pull request exists, both CI checks pass, and the workpad contains the final evidence.",
+  },
+  {
+    behavior: "safe blocker handling",
+    clause:
+      "If a blocker prevents safe progress, keep the issue out of `Human Review` and `Done`. Record the blocker and the required operator action under blockers in the workpad. Do not weaken a safety control.",
+  },
+  {
+    behavior: "human-only merge and completion",
+    clause:
+      "Never merge a pull request. Never mark the issue `Done`. A human reviews, merges, and completes the issue.",
+  },
+] as const;
+
+const loosePromptKeywords =
+  "Reference words only: repository guidance; one Linear workpad; second workpad comment; test-driven development; focused checks; pnpm verify; feature branch; pull request; CI evidence; Human Review; Rework; resume; workspace; branch; feedback; blockers; operator action; safety control; never merge; never push; main; Done; human completes.";
+
+const validPrompt = `${requiredPromptClauses
+  .map(({ clause }) => clause)
+  .join("\n\n")}\n\n${loosePromptKeywords}`;
 
 const validWorkflow = `---
 tracker:
@@ -269,36 +317,13 @@ describe("checkSymphonyReadiness", () => {
     );
   });
 
-  it.each([
-    ["repository guidance", "repository guidance", "project notes"],
-    ["one Linear workpad", "one Linear workpad comment", "a status comment"],
-    [
-      "test-driven development",
-      "test-driven development",
-      "incremental development",
-    ],
-    ["focused checks", "focused checks", "small commands"],
-    ["pnpm verify", "pnpm verify", "pnpm test"],
-    ["feature branch", "feature branch", "working branch"],
-    ["pull request", "pull request", "change request"],
-    ["CI evidence", "CI evidence", "automation output"],
-    ["Human Review", "Human Review", "Reviewer Queue"],
-    [
-      "Rework resume",
-      "If the issue returns for Rework, resume existing work.",
-      "Continue requested work.",
-    ],
-    ["blockers", "blockers", "problems"],
-    ["never merge", "Never merge", "Do not finalize"],
-    [
-      "never push to main",
-      "Never push directly to main",
-      "Avoid protected branches",
-    ],
-  ])(
-    "rejects a prompt without %s behavior",
-    async (_name, required, absent) => {
-      const promptWithoutBehavior = validPrompt.split(required).join(absent);
+  it.each(requiredPromptClauses)(
+    "rejects a prompt without the complete $behavior clause",
+    async ({ clause }) => {
+      const promptWithoutBehavior = validPrompt.replace(
+        clause,
+        "Rule removed.",
+      );
       const workflow = validWorkflow.replace(
         validPrompt,
         promptWithoutBehavior,
@@ -306,6 +331,7 @@ describe("checkSymphonyReadiness", () => {
       writeFileSync(join(root, "WORKFLOW.md"), workflow);
 
       expect(workflow).toContain("    - Rework");
+      expect(promptWithoutBehavior).toContain(loosePromptKeywords);
 
       const issues = await checkSymphonyReadiness(options());
 

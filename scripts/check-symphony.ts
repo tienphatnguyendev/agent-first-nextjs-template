@@ -298,39 +298,71 @@ function validateWorkflow(config: Record<string, unknown>): ReadinessIssue[] {
 
 const promptRequirements: readonly {
   readonly behavior: string;
-  readonly patterns: readonly RegExp[];
+  readonly clause: string;
 }[] = [
-  { behavior: "repository guidance", patterns: [/\brepository guidance\b/i] },
   {
-    behavior: "one Linear workpad",
-    patterns: [/\bone Linear workpad\b/i],
+    behavior: "repository guidance before file changes",
+    clause:
+      "Read `AGENTS.md`, `README.md`, `ARCHITECTURE.md`, and all repository guidance linked from them before you change files.",
   },
   {
-    behavior: "test-driven development",
-    patterns: [/\btest-driven development\b/i],
+    behavior: "exactly one Linear workpad",
+    clause:
+      "Maintain one Linear workpad comment for the issue. Create it if none exists. Update that same comment with your plan, progress, test results, branch, pull request, CI evidence, and blockers. Do not create a second workpad comment.",
   },
-  { behavior: "focused checks", patterns: [/\bfocused checks\b/i] },
-  { behavior: "pnpm verify", patterns: [/\bpnpm verify\b/i] },
-  { behavior: "a feature branch", patterns: [/\bfeature branch\b/i] },
-  { behavior: "a pull request", patterns: [/\bpull request\b/i] },
-  { behavior: "CI evidence", patterns: [/\bCI evidence\b/i] },
-  { behavior: "Human Review", patterns: [/\bHuman Review\b/i] },
   {
-    behavior: "resuming Rework",
-    patterns: [/\bRework\b/i, /\bresume\b/i],
+    behavior: "resuming Rework with review feedback",
+    clause:
+      "If it is in `Rework`, resume from the existing workspace, branch, workpad, and pull request. Read the review feedback, record the new plan in the workpad, and then move the issue to `In Progress`.",
   },
-  { behavior: "recording blockers", patterns: [/\bblockers\b/i] },
-  { behavior: "never merging", patterns: [/\bnever merge\b/i] },
   {
-    behavior: "never pushing to main",
-    patterns: [/\bnever push\b/i, /\bmain\b/i],
+    behavior: "test-driven RED and minimal GREEN evidence",
+    clause:
+      "Use test-driven development. Add a focused failing test first, run it, and confirm that it fails for the expected reason. Then make the smallest change that passes the test. Keep the RED and GREEN evidence in the workpad.",
+  },
+  {
+    behavior: "focused checks before pnpm verify",
+    clause:
+      "Run focused checks while you work. Run `pnpm verify` after the focused checks pass. Record the exact commands and results in the workpad.",
+  },
+  {
+    behavior: "feature branch delivery without main pushes",
+    clause:
+      "Work only on a feature branch for this issue. Commit the verified change, push that feature branch, and open or update its pull request. Never push directly to `main`.",
+  },
+  {
+    behavior: "both named CI checks with evidence",
+    clause:
+      "Confirm the pull request has passing `Verify foundation` and `Build secure container` checks. Add their CI evidence to the workpad.",
+  },
+  {
+    behavior: "Human Review only after final evidence",
+    clause:
+      "Move the issue to `Human Review` only after the pull request exists, both CI checks pass, and the workpad contains the final evidence.",
+  },
+  {
+    behavior: "safe blocker handling",
+    clause:
+      "If a blocker prevents safe progress, keep the issue out of `Human Review` and `Done`. Record the blocker and the required operator action under blockers in the workpad. Do not weaken a safety control.",
+  },
+  {
+    behavior: "human-only merge and completion",
+    clause:
+      "Never merge a pull request. Never mark the issue `Done`. A human reviews, merges, and completes the issue.",
   },
 ];
 
+function normalizePromptWhitespace(value: string): string {
+  return value.replace(/\s+/g, " ").trim();
+}
+
 function validatePrompt(prompt: string): ReadinessIssue[] {
   const issues: ReadinessIssue[] = [];
+  const normalizedPrompt = normalizePromptWhitespace(prompt);
   for (const requirement of promptRequirements) {
-    if (!requirement.patterns.every((pattern) => pattern.test(prompt))) {
+    if (
+      !normalizedPrompt.includes(normalizePromptWhitespace(requirement.clause))
+    ) {
       issues.push(
         issue(
           "unsafe-workflow",
