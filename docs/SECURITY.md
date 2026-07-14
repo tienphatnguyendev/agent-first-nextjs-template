@@ -30,6 +30,24 @@ raw error, a stack trace, migration details, or query data. Both healthy and
 unavailable responses copy the request correlation ID into the
 `x-correlation-id` header.
 
+The production Docker build uses separate dependency, build, and runtime
+stages. The final stage copies only `public`, the standalone Next.js server, and
+static Next.js files. It runs as the non-root `nextjs` operating-system user.
+Use `pnpm run container:check` to inspect this policy after every image build.
+The shared build stage installs OpenSSL for Prisma generation and removes the
+package-list cache. The final runtime stage does not install this build tool.
+
+`.dockerignore` keeps `.env` files, dependencies, build output, test evidence,
+and local Supabase state outside the build context. It allows only the safe
+`.env.example` contract. Prisma generation uses a fixed local placeholder URL
+inside the build stage. The runtime stage does not contain that placeholder,
+and the build accepts no database secret argument. Pass real server values only
+through the selected runtime secret system.
+
+The CI workflow grants read-only repository access. It never passes
+`DATABASE_URL`, `DIRECT_URL`, or another secret into `docker build`. It builds
+and inspects the image, but it does not publish or deploy it.
+
 Use `pnpm lint`, `pnpm typecheck`, architecture checks, unit tests, integration
 tests, and `pnpm verify` to check these controls. A passing check does not replace
 a security review for a real product.

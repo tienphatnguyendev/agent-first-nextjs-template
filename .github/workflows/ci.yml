@@ -1,0 +1,76 @@
+name: Foundation CI
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    name: Verify foundation
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          run_install: false
+      - name: Use Node.js 24
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+      - name: Prepare evidence directories
+        run: pnpm run artifacts:prepare
+      - name: Create the CI environment file
+        run: cp .env.example .env
+      - name: Prepare Supabase Database, Prisma, and Playwright
+        shell: bash
+        run: |
+          set -o pipefail
+          pnpm run setup 2>&1 | tee artifacts/supabase-start.log
+      - name: Run the complete repository gate
+        run: pnpm run verify
+      - name: Upload failure evidence
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: verification-artifacts
+          path: artifacts/
+          retention-days: 14
+
+  container:
+    name: Build secure container
+    needs: verify
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          run_install: false
+      - name: Use Node.js 24
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+      - name: Build the production image
+        run: pnpm run container:build
+      - name: Check the production image policy
+        run: pnpm run container:check

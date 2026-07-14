@@ -41,6 +41,8 @@ database changes.
 - `pnpm test:e2e` builds the application and runs browser tests.
 - `pnpm db:migrate -- --name <description>` creates a named Prisma migration.
 - `pnpm db:reset` rebuilds the local database with Prisma migrations.
+- `pnpm run container:build` builds the hosting-neutral production image.
+- `pnpm run container:check` confirms that the image runs as `nextjs`.
 
 ## Database scope
 
@@ -51,6 +53,30 @@ client.
 Prisma alone owns the schema and migration history. Keep schema changes in
 `prisma/schema.prisma` and `prisma/migrations/`. Never create
 `supabase/migrations/`.
+
+## Production image and CI
+
+Build and inspect the production image with:
+
+```bash
+pnpm run container:build
+pnpm run container:check
+```
+
+The multi-stage image copies only the public files and standalone Next.js
+runtime into its final stage. It runs as the non-root `nextjs` user. Non-root
+means the application does not have administrator access inside the container.
+The image health check calls `GET /api/health` on port 3000.
+
+The build uses a fixed, local-only placeholder for Prisma code generation. It
+does not receive real database values. Supply `DATABASE_URL`, `DIRECT_URL`, and
+other server values through the selected runtime secret system when the
+container starts. Run `pnpm db:deploy` as a separate release step before the
+new application version starts.
+
+GitHub Actions runs `pnpm run setup` and `pnpm run verify`, then builds and
+checks the same production image. A failed verification run keeps `artifacts/`
+for investigation. The workflow does not publish or deploy the image.
 
 ## Repository knowledge
 

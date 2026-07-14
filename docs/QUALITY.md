@@ -46,6 +46,58 @@ generated dependency, artifact, and build directories. It cannot prove that
 the prose remains factually current, so each code change must update affected
 documents.
 
+Delivery policy tests check the Node.js 24 multi-stage image, standalone output,
+non-root runtime user, health check, Docker ignore rules, read-only CI access,
+job timeouts, failure evidence, and repository-owned CI commands. The container
+policy command also inspects the built image directly and requires the exact
+runtime user `nextjs`.
+
+## Final foundation acceptance
+
+Run the guarded acceptance sequence without replacing an existing `.env`:
+
+```bash
+test -e .env || cp .env.example .env
+pnpm install --frozen-lockfile
+pnpm run setup
+pnpm run verify
+pnpm run container:build
+pnpm run container:check
+git status --short
+```
+
+The completed foundation maps to the approved acceptance criteria as follows:
+
+| Acceptance criterion                                                  | Repository evidence                                                                                    |
+| --------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------ |
+| A new developer can install and start the application.                | `README.md` provides the guarded environment copy and `pnpm run setup` steps.                          |
+| `pnpm dev` starts PostgreSQL and Next.js.                             | The command starts the database-only Supabase stack before the application.                            |
+| The neutral shell loads in a browser.                                 | The Playwright shell test checks the production page and heading.                                      |
+| Health reports database availability safely.                          | Unit, integration, and Playwright tests check the safe body and correlation header.                    |
+| Prisma manages an empty migration history.                            | Setup, reset guards, integration tests, and the baseline migration use only `prisma/migrations/`.      |
+| Architecture tests reject invalid imports with repair guidance.       | Six fixture cases cover valid public imports and five invalid boundary cases.                          |
+| One ordered command verifies a prepared checkout.                     | `pnpm run verify` runs all nine approved checks and stops at the first failure.                        |
+| Playwright tests the production build.                                | The web server wrapper starts `.next/standalone/server.js` and retains browser evidence on failure.    |
+| CI follows the local verification path and builds the image.          | The policy-tested workflow calls repository setup, verification, build, and image inspection commands. |
+| `AGENTS.md` stays a short knowledge map.                              | The documentation checker validates its links to deeper guidance.                                      |
+| Documentation checks detect missing files and broken links.           | Unit fixtures and `pnpm docs:check` cover required documents, indexes, links, and plan sections.       |
+| The foundation contains no product feature or extra Supabase service. | The source tree has no product module, and local configuration enables PostgreSQL only.                |
+
+The isolated-worktree acceptance run on 2026-07-14 produced these results:
+
+- Frozen dependency installation passed without changing the lockfile.
+- `pnpm run setup` passed. Docker showed only
+  `supabase_db_agentic-coding-os`; every non-database Supabase service remained
+  stopped.
+- `pnpm run verify` passed all nine checks in the approved order: 107 unit
+  tests, 3 integration tests, the production build, and 2 Playwright tests
+  passed. The standalone server produced no `next start` compatibility warning.
+- `pnpm run container:build` passed without a Prisma OpenSSL warning.
+- `pnpm run container:check` passed, and direct image inspection returned the
+  exact runtime user `nextjs`.
+- `git diff --check` passed. After the Task 10 commit, `git status --short`
+  returned no tracked or untracked file changes.
+
 This foundation does not add a sample business module, product-specific tests,
 performance or load tests, automatic pull-request merging, or production
 deployment checks. Add these only when an approved product or production design

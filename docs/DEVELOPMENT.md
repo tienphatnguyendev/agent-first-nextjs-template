@@ -45,7 +45,8 @@ Run `pnpm test` when a change affects the database or more than one layer. Run
 Run `pnpm verify` before you finish. It runs all required checks in the order
 defined in [QUALITY.md](QUALITY.md).
 
-`pnpm test:e2e` creates a fresh production build, starts it with `next start`,
+`pnpm test:e2e` creates a fresh production build, copies public and static files
+into the standalone output, starts `.next/standalone/server.js` with Node.js,
 and runs the browser smoke tests. Use `pnpm test:e2e:run` only when a current
 production build already exists. Playwright never reuses an existing server,
 runs one Chromium worker, and waits for the database-backed health endpoint

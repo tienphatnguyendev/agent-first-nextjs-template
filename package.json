@@ -13,7 +13,8 @@
     "dev": "pnpm db:start && pnpm dev:app",
     "dev:app": "next dev",
     "build": "next build",
-    "start": "next start",
+    "postbuild": "node --import tsx scripts/prepare-standalone.ts",
+    "start": "node .next/standalone/server.js",
     "start:e2e-server": "node --import tsx scripts/start-production-for-e2e.ts",
     "architecture:source": "depcruise src --config .dependency-cruiser.cjs --output-type err-long",
     "architecture:fixtures": "node --import tsx scripts/check-architecture-fixtures.ts",
@@ -35,7 +36,9 @@
     "test:unit": "vitest run --config vitest.config.ts",
     "test:integration": "vitest run --config vitest.integration.config.ts",
     "test:e2e": "pnpm run build && pnpm run test:e2e:run",
-    "test:e2e:run": "playwright test"
+    "test:e2e:run": "playwright test",
+    "container:build": "docker build --target runner --tag agentic-coding-os:ci .",
+    "container:check": "node --import tsx scripts/check-container.ts agentic-coding-os:ci"
   },
   "dependencies": {
     "@prisma/adapter-pg": "^7.8.0",

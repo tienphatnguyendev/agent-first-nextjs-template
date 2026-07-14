@@ -21,17 +21,31 @@ boundary. Production build and Playwright checks exercise the built
 application. `pnpm verify` combines these checks; see [QUALITY.md](QUALITY.md)
 for the order.
 
-Playwright starts the production application with `next start`; it never uses
-the development server or reuses an existing process. The server wrapper copies
-standard output and error output to the terminal and
-`artifacts/application.log`. It forwards `SIGINT` and `SIGTERM` once, stops the
-child server when the wrapper exits, and reports the exact failed command with
-repair guidance. Browser failures retain a screenshot, trace, video, HTML
-report, JUnit report, and application log for investigation.
+Playwright starts the standalone production server with Node.js; it never uses
+`next start`, the development server, or an existing process. The post-build
+step copies `public` and `.next/static` into `.next/standalone` before the server
+starts. The server wrapper copies standard output and error output to the
+terminal and `artifacts/application.log`. It forwards `SIGINT` and `SIGTERM`
+once, stops the child server when the wrapper exits, and reports the exact failed
+command with repair guidance. Browser failures retain a screenshot, trace,
+video, HTML report, JUnit report, and application log for investigation.
 
 Prisma migrations run as a separate release step before a new application
 version starts. A failed migration must stop the release. Prisma remains the
 only schema and migration authority; do not add `supabase/migrations/`.
+
+The production image contains a Docker health check that calls
+`GET /api/health` on port 3000. The image therefore reports failure when the
+application or its database connection is unavailable. The final image starts
+the standalone Next.js server with Node.js and runs as the non-root `nextjs`
+user. `pnpm run container:check` inspects the image user and prints a repair
+instruction when the image is missing or unsafe.
+
+GitHub Actions gives verification 30 minutes and container checks 20 minutes.
+It cancels an older run for the same branch when a newer run starts. On failure,
+it keeps `artifacts/` for 14 days, including test reports, Playwright evidence,
+application output, and the Supabase startup log. It does not publish, deploy,
+or automatically roll back an image.
 
 The foundation uses one local Supabase environment at a time. Isolated ports
 and project identifiers for simultaneous worktrees remain outside this scope.
