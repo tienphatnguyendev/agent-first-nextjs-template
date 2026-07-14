@@ -6,6 +6,7 @@ export default defineConfig([
   ...nextVitals,
   ...nextTs,
   globalIgnores([
+    ".worktrees/**",
     ".next/**",
     "out/**",
     "build/**",

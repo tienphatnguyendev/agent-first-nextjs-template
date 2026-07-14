@@ -96,6 +96,12 @@ describe("delivery configuration", () => {
     }
   });
 
+  it("keeps repository-local worktrees outside lint scope", () => {
+    const eslintConfig = readRepositoryFile("eslint.config.mjs");
+
+    expect(eslintConfig).toContain('".worktrees/**"');
+  });
+
   it("runs repository-owned verification and container commands in CI", () => {
     const workflow = readRepositoryFile(".github/workflows/ci.yml");
     const verify = workflowJob(workflow, "verify");
