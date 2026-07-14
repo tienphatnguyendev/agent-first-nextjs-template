@@ -25,17 +25,18 @@ workspace:
   root: ~/code/symphony-workspaces
 hooks:
   after_create: |
+    unset LINEAR_API_KEY
     git clone --depth 1 https://github.com/tienphatnguyendev/agent-first-nextjs-template.git .
     test -e .env || cp .env.example .env
     pnpm install --frozen-lockfile
-  before_run: pnpm run setup
-  after_run: pnpm exec supabase stop --no-backup
-  before_remove: pnpm exec supabase stop --no-backup
+  before_run: env -u LINEAR_API_KEY pnpm run setup
+  after_run: env -u LINEAR_API_KEY pnpm exec supabase stop --no-backup
+  before_remove: env -u LINEAR_API_KEY pnpm exec supabase stop --no-backup
   timeout_ms: 1200000
 agent:
   max_concurrent_agents: 1
 codex:
-  command: codex --config shell_environment_policy.inherit=core app-server
+  command: env -u LINEAR_API_KEY codex --config shell_environment_policy.inherit=core app-server
   approval_policy: never
   thread_sandbox: workspace-write
   turn_sandbox_policy:

@@ -23,7 +23,8 @@ The pinned revision expands `tracker.api_key: $LINEAR_API_KEY`, but it does not
 expand an environment variable in `tracker.project_slug`. The project slug is
 not a secret, so `WORKFLOW.md` stores the authoritative literal
 `agentic-coding-os-0d02fd16cb9c`. `LINEAR_API_KEY` remains the only Linear
-secret in the Symphony process environment.
+secret in the Symphony process environment. Repository hooks and the Codex
+App Server remove that variable before they start their child processes.
 
 ## Current external evidence and preview risk
 
@@ -165,19 +166,27 @@ git status --short
 The status command must print nothing. Do not start Symphony if any gate above
 is incomplete.
 
-## Export the process environment
+## Read the shell-local secret
 
-Open a dedicated zsh session for Symphony. Read the values into that shell and
-export them only to the Symphony process and its children:
+Open a dedicated zsh session for Symphony. Read the key into a shell-local
+variable. Do not export it globally:
 
 ```zsh
 read -rs "LINEAR_API_KEY?Linear API key: "; printf '\n'
-export LINEAR_API_KEY
 ```
 
-Do not add this export to `.zshrc`, another shell profile, an `.env` file, or a
-script. Close the shell or run the `unset` command in the stop procedure to
-remove the value from that process environment.
+Prefix only the readiness and Symphony commands with
+`LINEAR_API_KEY="$LINEAR_API_KEY"`, as shown below. This gives the key to each
+named process without exporting it to unrelated commands in the operator
+shell. Do not add the key to `.zshrc`, another shell profile, an `.env` file,
+or a script. Close the shell or run the `unset` command in the stop procedure
+to remove the value.
+
+Symphony keeps the key so its Linear tracker can authenticate. The readiness
+checker validates that the variable exists but removes it from every tool
+process that it starts. `WORKFLOW.md` also removes it from every repository
+hook and from the Codex App Server. Those children keep normal values such as
+`PATH`, but they cannot read the Linear credential.
 
 ## Reserve the Supabase window
 
@@ -205,7 +214,7 @@ After the protected pull request is merged and the clean operator checkout
 matches remote `main`, run the read-only readiness command:
 
 ```bash
-pnpm symphony:check
+LINEAR_API_KEY="$LINEAR_API_KEY" pnpm symphony:check
 ```
 
 Do not reuse the earlier preflight result. Do not start Symphony until this
@@ -223,7 +232,7 @@ from the clean checkout at remote `main`:
 ```bash
 REPOSITORY_ROOT="$(git rev-parse --show-toplevel)"
 cd ~/code/openai-symphony/elixir
-mise exec -- ./bin/symphony \
+LINEAR_API_KEY="$LINEAR_API_KEY" mise exec -- ./bin/symphony \
   --i-understand-that-this-will-be-running-without-the-usual-guardrails \
   --logs-root "$HOME/Library/Logs/agentic-coding-os-symphony" \
   --port 4000 \
@@ -308,11 +317,11 @@ tail -n 200 "$LOG_FILE"
 ```
 
 Replace the example `LOG_FILE` value with one path printed by `find`. Return to
-the repository checkout, export the process environment again, and rerun the
-preflight:
+the repository checkout, read the shell-local key again if needed, and rerun
+the preflight with the explicit process assignment:
 
 ```bash
-pnpm symphony:check
+LINEAR_API_KEY="$LINEAR_API_KEY" pnpm symphony:check
 ```
 
 When the check passes, repeat the exact start commands. Symphony uses the same

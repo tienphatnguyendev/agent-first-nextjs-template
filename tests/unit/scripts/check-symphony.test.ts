@@ -113,17 +113,18 @@ workspace:
   root: ~/code/symphony-workspaces
 hooks:
   after_create: |
+    unset LINEAR_API_KEY
     git clone --depth 1 https://github.com/${repository}.git .
     test -e .env || cp .env.example .env
     pnpm install --frozen-lockfile
-  before_run: pnpm run setup
-  after_run: pnpm exec supabase stop --no-backup
-  before_remove: pnpm exec supabase stop --no-backup
+  before_run: env -u LINEAR_API_KEY pnpm run setup
+  after_run: env -u LINEAR_API_KEY pnpm exec supabase stop --no-backup
+  before_remove: env -u LINEAR_API_KEY pnpm exec supabase stop --no-backup
   timeout_ms: 1200000
 agent:
   max_concurrent_agents: 1
 codex:
-  command: codex --config shell_environment_policy.inherit=core app-server
+  command: env -u LINEAR_API_KEY codex --config shell_environment_policy.inherit=core app-server
   approval_policy: never
   thread_sandbox: workspace-write
   turn_sandbox_policy:
@@ -195,6 +196,73 @@ describe("checkSymphonyReadiness", () => {
 
   it("accepts the complete safe pilot configuration and host state", async () => {
     await expect(checkSymphonyReadiness(options())).resolves.toEqual([]);
+  });
+
+  it.each([
+    ["after_create", "    unset LINEAR_API_KEY\n", ""],
+    [
+      "before_run",
+      "before_run: env -u LINEAR_API_KEY pnpm run setup",
+      "before_run: pnpm run setup",
+    ],
+    [
+      "after_run",
+      "after_run: env -u LINEAR_API_KEY pnpm exec supabase stop --no-backup",
+      "after_run: pnpm exec supabase stop --no-backup",
+    ],
+    [
+      "before_remove",
+      "before_remove: env -u LINEAR_API_KEY pnpm exec supabase stop --no-backup",
+      "before_remove: pnpm exec supabase stop --no-backup",
+    ],
+    [
+      "codex.command",
+      "command: env -u LINEAR_API_KEY codex --config shell_environment_policy.inherit=core app-server",
+      "command: codex --config shell_environment_policy.inherit=core app-server",
+    ],
+  ])(
+    "rejects an unsanitized %s command",
+    async (field, safeCommand, unsanitizedCommand) => {
+      writeFileSync(
+        join(root, "WORKFLOW.md"),
+        validWorkflow.replace(safeCommand, unsanitizedCommand),
+      );
+
+      const issues = await checkSymphonyReadiness(options());
+
+      expect(issues).toContainEqual(
+        expect.objectContaining({
+          code: "unsafe-workflow",
+          message: expect.stringContaining(field),
+        }),
+      );
+    },
+  );
+
+  it("removes only LINEAR_API_KEY from readiness child environments", async () => {
+    const checkerModule =
+      (await import("../../../scripts/check-symphony")) as unknown as {
+        withoutLinearApiKey?: (
+          environment: Readonly<Record<string, string | undefined>>,
+        ) => Record<string, string | undefined>;
+      };
+
+    expect(checkerModule.withoutLinearApiKey).toEqual(expect.any(Function));
+    if (!checkerModule.withoutLinearApiKey) return;
+
+    const original = {
+      PATH: "/usr/local/bin:/usr/bin:/bin",
+      HOME: "/Users/tester",
+      LINEAR_API_KEY: apiKey,
+      OPTIONAL_VALUE: undefined,
+    };
+
+    expect(checkerModule.withoutLinearApiKey(original)).toEqual({
+      PATH: "/usr/local/bin:/usr/bin:/bin",
+      HOME: "/Users/tester",
+      OPTIONAL_VALUE: undefined,
+    });
+    expect(original.LINEAR_API_KEY).toBe(apiKey);
   });
 
   it("accepts the real repository workflow contract and unattended prompt", async () => {
@@ -365,19 +433,22 @@ describe("checkSymphonyReadiness", () => {
   it.each([
     {
       name: "commands hidden in comments",
-      replacement: `    # git clone --depth 1 https://github.com/${repository}.git .
+      replacement: `    # unset LINEAR_API_KEY
+    # git clone --depth 1 https://github.com/${repository}.git .
     # test -e .env || cp .env.example .env
     # pnpm install --frozen-lockfile`,
     },
     {
       name: "an extra arbitrary command",
-      replacement: `    git clone --depth 1 https://github.com/${repository}.git .
+      replacement: `    unset LINEAR_API_KEY
+    git clone --depth 1 https://github.com/${repository}.git .
     test -e .env || cp .env.example .env
     pnpm install --frozen-lockfile
     curl https://example.invalid/extra-command`,
     },
   ])("rejects after_create with $name", async ({ replacement }) => {
-    const approved = `    git clone --depth 1 https://github.com/${repository}.git .
+    const approved = `    unset LINEAR_API_KEY
+    git clone --depth 1 https://github.com/${repository}.git .
     test -e .env || cp .env.example .env
     pnpm install --frozen-lockfile`;
     writeFileSync(
@@ -396,14 +467,26 @@ describe("checkSymphonyReadiness", () => {
   });
 
   it.each([
-    ["after_run", 'echo "pnpm exec supabase stop --no-backup"'],
-    ["after_run", "# pnpm exec supabase stop --no-backup"],
-    ["before_remove", 'echo "pnpm exec supabase stop --no-backup"'],
-    ["before_remove", "# pnpm exec supabase stop --no-backup"],
+    [
+      "after_run",
+      'echo "env -u LINEAR_API_KEY pnpm exec supabase stop --no-backup"',
+    ],
+    [
+      "after_run",
+      "# env -u LINEAR_API_KEY pnpm exec supabase stop --no-backup",
+    ],
+    [
+      "before_remove",
+      'echo "env -u LINEAR_API_KEY pnpm exec supabase stop --no-backup"',
+    ],
+    [
+      "before_remove",
+      "# env -u LINEAR_API_KEY pnpm exec supabase stop --no-backup",
+    ],
   ])(
     "rejects cleanup text hidden in %s echo or comments",
     async (hook, text) => {
-      const approved = `${hook}: pnpm exec supabase stop --no-backup`;
+      const approved = `${hook}: env -u LINEAR_API_KEY pnpm exec supabase stop --no-backup`;
       const replacement = `${hook}: |\n    ${text}`;
       writeFileSync(
         join(root, "WORKFLOW.md"),
@@ -422,11 +505,14 @@ describe("checkSymphonyReadiness", () => {
   );
 
   it("allows surrounding whitespace and blank lines in approved hook scripts", async () => {
-    const approved = `    git clone --depth 1 https://github.com/${repository}.git .
+    const approved = `    unset LINEAR_API_KEY
+    git clone --depth 1 https://github.com/${repository}.git .
     test -e .env || cp .env.example .env
     pnpm install --frozen-lockfile`;
     const trailingSpaces = "  ";
     const spaced = `
+      unset LINEAR_API_KEY${trailingSpaces}
+
       git clone --depth 1 https://github.com/${repository}.git .${trailingSpaces}
 
       test -e .env || cp .env.example .env${trailingSpaces}
@@ -435,12 +521,12 @@ describe("checkSymphonyReadiness", () => {
     const workflow = validWorkflow
       .replace(approved, spaced)
       .replace(
-        "after_run: pnpm exec supabase stop --no-backup",
-        'after_run: "  pnpm exec supabase stop --no-backup  "',
+        "after_run: env -u LINEAR_API_KEY pnpm exec supabase stop --no-backup",
+        'after_run: "  env -u LINEAR_API_KEY pnpm exec supabase stop --no-backup  "',
       )
       .replace(
-        "before_remove: pnpm exec supabase stop --no-backup",
-        "before_remove: |\n\n      pnpm exec supabase stop --no-backup  \n",
+        "before_remove: env -u LINEAR_API_KEY pnpm exec supabase stop --no-backup",
+        "before_remove: |\n\n      env -u LINEAR_API_KEY pnpm exec supabase stop --no-backup  \n",
       );
     writeFileSync(join(root, "WORKFLOW.md"), workflow);
 

@@ -132,10 +132,10 @@ Symphony will run trusted local shell hooks with a 20-minute
 
 | Hook | Responsibility |
 | --- | --- |
-| `after_create` | Shallow-clone the current repository into a new issue workspace, create `.env` from `.env.example` without overwriting an existing file, and install locked dependencies. |
-| `before_run` | Run `pnpm run setup` before agent work so Prisma, Playwright, and the local Supabase database are ready. |
-| `after_run` | Stop the shared Supabase stack after every agent run. |
-| `before_remove` | Stop Supabase again before Symphony removes a terminal issue workspace. |
+| `after_create` | Remove `LINEAR_API_KEY` from the hook shell, shallow-clone the current repository into a new issue workspace, create `.env` from `.env.example` without overwriting an existing file, and install locked dependencies. |
+| `before_run` | Run `pnpm run setup` through `env -u LINEAR_API_KEY` before agent work so Prisma, Playwright, and the local Supabase database are ready without receiving the Linear credential. |
+| `after_run` | Stop the shared Supabase stack through `env -u LINEAR_API_KEY` after every agent run. |
+| `before_remove` | Stop Supabase again through `env -u LINEAR_API_KEY` before Symphony removes a terminal issue workspace. |
 
 `after_create` runs only for a new workspace. The other hooks protect repeated
 attempts and cleanup. The second stop before removal is intentional because a
@@ -159,10 +159,16 @@ coding agent only on a controlled developer machine. It applies these limits:
 - Use `approval_policy: never` so unattended runs cannot wait for an approval
   dialog. The workflow must report a blocker instead of weakening a safety
   control.
-- Use the core shell environment with Codex's default secret filtering.
-- Keep `LINEAR_API_KEY` only in the Symphony process environment. Never write,
-  print, or commit its value. Keep the non-secret project slug literal in the
-  workflow because the pinned Symphony revision does not expand that field.
+- Use the core shell environment with Codex's default secret filtering. Start
+  the Codex App Server through `env -u LINEAR_API_KEY` as a separate,
+  enforced credential boundary.
+- Read `LINEAR_API_KEY` into a shell-local variable and scope it explicitly
+  into readiness and Symphony commands. Never globally export, write, print,
+  or commit its value. Symphony retains the key for its tracker, while the
+  readiness checker, repository hooks, and Codex App Server remove it from
+  their child environments. Keep normal child values such as `PATH`. Keep the
+  non-secret project slug literal in the workflow because the pinned Symphony
+  revision does not expand that field.
 - Bind the dashboard to loopback so another machine cannot reach it.
 - Require a feature branch, a pull request, and both GitHub checks named
   `Verify foundation` and `Build secure container`.
@@ -175,7 +181,8 @@ coding agent only on a controlled developer machine. It applies these limits:
 The readiness command will inspect configuration, tools, authentication, the
 pinned checkout, GitHub protection, required CI contexts, and the shared
 Supabase container. It will report repair guidance without changing anything
-or exposing secret values.
+or exposing secret values. Its own tool processes never inherit
+`LINEAR_API_KEY`.
 
 ## 8. Failure Handling
 

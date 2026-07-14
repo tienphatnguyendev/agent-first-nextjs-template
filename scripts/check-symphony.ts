@@ -49,12 +49,23 @@ const toolCommands = [
   ["pnpm", ["--version"]],
 ] as const;
 
+export function withoutLinearApiKey(
+  environment: Readonly<Record<string, string | undefined>>,
+): Record<string, string | undefined> {
+  const childEnvironment = { ...environment };
+  delete childEnvironment.LINEAR_API_KEY;
+  return childEnvironment;
+}
+
 const executeCommand: RunCommand = (command, args) =>
   new Promise((done) => {
     execFile(
       command,
       [...args],
-      { encoding: "utf8" },
+      {
+        encoding: "utf8",
+        env: withoutLinearApiKey(process.env) as NodeJS.ProcessEnv,
+      },
       (error, stdout, stderr) => {
         const processError = error as NodeJS.ErrnoException & {
           readonly code?: string | number;
@@ -246,23 +257,28 @@ function validateWorkflow(config: Record<string, unknown>): ReadinessIssue[] {
     ["hooks", "after_create"],
     (value) =>
       hasExactCommandLines(value, [
+        "unset LINEAR_API_KEY",
         `git clone --depth 1 https://github.com/${repository}.git .`,
         "test -e .env || cp .env.example .env",
         "pnpm install --frozen-lockfile",
       ]),
-    "the approved shallow clone, guarded .env copy, and locked install commands",
+    "the approved credential unset, shallow clone, guarded .env copy, and locked install commands",
   );
   requireValue(
     ["hooks", "before_run"],
-    (value) => typeof value === "string" && value.trim() === "pnpm run setup",
-    '"pnpm run setup"',
+    (value) =>
+      typeof value === "string" &&
+      value.trim() === "env -u LINEAR_API_KEY pnpm run setup",
+    '"env -u LINEAR_API_KEY pnpm run setup"',
   );
   for (const hook of ["after_run", "before_remove"] as const) {
     requireValue(
       ["hooks", hook],
       (value) =>
-        hasExactCommandLines(value, ["pnpm exec supabase stop --no-backup"]),
-      '"pnpm exec supabase stop --no-backup"',
+        hasExactCommandLines(value, [
+          "env -u LINEAR_API_KEY pnpm exec supabase stop --no-backup",
+        ]),
+      '"env -u LINEAR_API_KEY pnpm exec supabase stop --no-backup"',
     );
   }
   requireValue(
@@ -276,8 +292,8 @@ function validateWorkflow(config: Record<string, unknown>): ReadinessIssue[] {
     (value) =>
       typeof value === "string" &&
       value.trim() ===
-        "codex --config shell_environment_policy.inherit=core app-server",
-    '"codex --config shell_environment_policy.inherit=core app-server"',
+        "env -u LINEAR_API_KEY codex --config shell_environment_policy.inherit=core app-server",
+    '"env -u LINEAR_API_KEY codex --config shell_environment_policy.inherit=core app-server"',
   );
   requireValue(
     ["codex", "approval_policy"],

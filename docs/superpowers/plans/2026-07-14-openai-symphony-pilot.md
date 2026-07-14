@@ -19,7 +19,7 @@
 - Use Codex `workspace-write`, network access, `approval_policy: never`, and a core shell environment with default secret filtering.
 - Require pull requests and both GitHub CI jobs; never merge automatically or push directly to `main`.
 - Each issue workspace clones the remote default branch, `main`. Do not start the daemon until full repository verification passes, a reviewed protected pull request passes both CI jobs, a human merges it into remote `main`, and a clean operator checkout at that commit passes a fresh readiness preflight.
-- Keep `LINEAR_API_KEY` in the Symphony process environment only. Never print or commit it. Store the non-secret project slug literally because the pinned Symphony revision does not expand that field.
+- Read `LINEAR_API_KEY` into a shell-local variable and scope it explicitly into readiness and Symphony commands. Never globally export, print, or commit it. Symphony retains it for Linear, while the readiness checker's tool children, every repository hook, and the Codex App Server remove it from their environments. Store the non-secret project slug literally because the pinned Symphony revision does not expand that field.
 - Do not add a product API, database schema, Next.js module, background worker, production-container component, or deployment dependency.
 
 ---
@@ -38,12 +38,12 @@
 - Produces the approved design, official-source record, and durable progress ledger used by later tasks.
 - Does not change runtime behavior.
 
-- [ ] Write the design with the approved architecture, Linear state model, hooks, security posture, failure handling, three pilot issues, and pass/fail criteria.
-- [ ] Write the reference note with access date `2026-07-14` and links to the OpenAI announcement, Symphony repository, `SPEC.md`, Elixir README, and Codex App Server docs.
-- [ ] Create the active plan with the exact required `## Status`, `## Progress`, `## Decisions`, and `## Verification` sections. Mark repository implementation active and external setup pending.
-- [ ] Link every new document from its required index.
-- [ ] Run `env COREPACK_HOME=/tmp/corepack pnpm docs:check` and `env COREPACK_HOME=/tmp/corepack pnpm format:check`; expect exit code 0.
-- [ ] Commit with `docs: design OpenAI Symphony local pilot`.
+- [x] Write the design with the approved architecture, Linear state model, hooks, security posture, failure handling, three pilot issues, and pass/fail criteria.
+- [x] Write the reference note with access date `2026-07-14` and links to the OpenAI announcement, Symphony repository, `SPEC.md`, Elixir README, and Codex App Server docs.
+- [x] Create the active plan with the exact required `## Status`, `## Progress`, `## Decisions`, and `## Verification` sections. Mark repository implementation active and external setup pending.
+- [x] Link every new document from its required index.
+- [x] Run `env COREPACK_HOME=/tmp/corepack pnpm docs:check` and `env COREPACK_HOME=/tmp/corepack pnpm format:check`; expect exit code 0.
+- [x] Commit with `docs: design OpenAI Symphony local pilot`.
 
 ### Task 2: Add a Tested Symphony Readiness Command
 
@@ -59,14 +59,14 @@
 - Add package command `pnpm symphony:check`.
 - Consume root `WORKFLOW.md`, `LINEAR_API_KEY`, local command results, and GitHub branch-protection JSON.
 
-- [ ] Add `yaml` as a direct development dependency.
-- [ ] Write failing Vitest cases for missing workflow, invalid front matter, unsafe workflow values, absent secrets without value disclosure, missing tools, wrong pinned commit, failed `gh` authentication, missing branch protection or CI contexts, and an already-running `supabase_db_agentic-coding-os` container.
-- [ ] Run `env COREPACK_HOME=/tmp/corepack pnpm test:unit -- tests/unit/scripts/check-symphony.test.ts`; verify RED failures come from the missing implementation.
-- [ ] Implement strict front-matter parsing and typed validation for all Global Constraints. Inject command execution and environment values so tests do not call real external services.
-- [ ] Implement read-only host checks for `codex`, `mise`, `docker`, `gh`, pnpm, the pinned checkout, GitHub authentication/protection, and the shared Supabase container. Never include secret values in output.
-- [ ] Make the CLI print concise failures followed by repair guidance and return 1; print a short readiness confirmation and return 0 when all checks pass.
-- [ ] Run the focused test again and expect all cases to pass, then run the full unit suite.
-- [ ] Commit with `feat: add Symphony readiness checks`.
+- [x] Add `yaml` as a direct development dependency.
+- [x] Write failing Vitest cases for missing workflow, invalid front matter, unsafe workflow values, absent secrets without value disclosure, missing tools, wrong pinned commit, failed `gh` authentication, missing branch protection or CI contexts, and an already-running `supabase_db_agentic-coding-os` container.
+- [x] Run `env COREPACK_HOME=/tmp/corepack pnpm test:unit -- tests/unit/scripts/check-symphony.test.ts`; verify RED failures come from the missing implementation.
+- [x] Implement strict front-matter parsing and typed validation for all Global Constraints. Inject command execution and environment values so tests do not call real external services.
+- [x] Implement read-only host checks for `codex`, `mise`, `docker`, `gh`, pnpm, the pinned checkout, GitHub authentication/protection, and the shared Supabase container. Never include secret values in output.
+- [x] Make the CLI print concise failures followed by repair guidance and return 1; print a short readiness confirmation and return 0 when all checks pass.
+- [x] Run the focused test again and expect all cases to pass, then run the full unit suite.
+- [x] Commit with `feat: add Symphony readiness checks`.
 
 ### Task 3: Add the Repository Workflow and Operator Guide
 
@@ -80,16 +80,16 @@
 **Interfaces:**
 - `WORKFLOW.md` is the repository-owned Symphony contract.
 - `docs/SYMPHONY.md` is the operator runbook for setup, preflight, start, stop, recovery, and cleanup.
-- The workflow consumes `LINEAR_API_KEY` through explicit `$VAR` indirection and stores the non-secret project slug `agentic-coding-os-0d02fd16cb9c` literally for compatibility with the pinned Symphony revision.
+- The workflow consumes `LINEAR_API_KEY` through explicit `$VAR` indirection for Symphony, removes it from all hooks and the Codex App Server, and stores the non-secret project slug `agentic-coding-os-0d02fd16cb9c` literally for compatibility with the pinned Symphony revision.
 
-- [ ] Add a failing contract test that loads the real root `WORKFLOW.md` and checks the approved tracker states, label, poll interval `30000`, workspace root, hook timeout `1200000`, concurrency `1`, pinned upstream revision, Codex policies, and prompt rules.
-- [ ] Run the focused test and verify it fails because `WORKFLOW.md` does not exist.
-- [ ] Add `WORKFLOW.md` with trusted hooks: shallow clone the current repository, create `.env` from `.env.example`, install locked dependencies, run full setup before work, and stop Supabase after work and before removal.
-- [ ] Add the unattended prompt: read repository guidance, maintain a Linear workpad, use test-driven development, run focused checks plus `pnpm verify`, push a feature branch, open a PR, move to `Human Review`, handle `Rework`, record blockers, and never merge or push to `main`.
-- [ ] Add the runbook with exact macOS install/build/start commands, environment setup without stored secrets, dashboard/log paths, exclusive database window, readiness command, recovery procedures, and uninstall steps.
-- [ ] Link the runbook from `AGENTS.md` and `README.md` without turning `AGENTS.md` into a full manual.
-- [ ] Run the focused test, docs check, formatting check, and full unit suite; expect exit code 0.
-- [ ] Commit with `feat: add Symphony workflow contract`.
+- [x] Add a failing contract test that loads the real root `WORKFLOW.md` and checks the approved tracker states, label, poll interval `30000`, workspace root, hook timeout `1200000`, concurrency `1`, pinned upstream revision, Codex policies, and prompt rules.
+- [x] Run the focused test and verify it fails because `WORKFLOW.md` does not exist.
+- [x] Add `WORKFLOW.md` with trusted hooks: remove `LINEAR_API_KEY`, shallow clone the current repository, create `.env` from `.env.example`, install locked dependencies, run full setup before work, and stop Supabase after work and before removal.
+- [x] Add the unattended prompt: read repository guidance, maintain a Linear workpad, use test-driven development, run focused checks plus `pnpm verify`, push a feature branch, open a PR, move to `Human Review`, handle `Rework`, record blockers, and never merge or push to `main`.
+- [x] Add the runbook with exact macOS install/build/start commands, environment setup without stored secrets, dashboard/log paths, exclusive database window, readiness command, recovery procedures, and uninstall steps.
+- [x] Link the runbook from `AGENTS.md` and `README.md` without turning `AGENTS.md` into a full manual.
+- [x] Run the focused test, docs check, formatting check, and full unit suite; expect exit code 0.
+- [x] Commit with `feat: add Symphony workflow contract`.
 
 ### Task 4: Configure the Trusted Local Pilot Environment
 

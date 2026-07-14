@@ -85,6 +85,10 @@ preflight before the daemon can start.
   pull request with both required checks, a human merge into remote `main`, a
   clean operator checkout at that remote commit, and a fresh readiness
   preflight.
+- Keep the Linear key in a shell-local variable and scope it explicitly into
+  the readiness and Symphony commands. Symphony retains it for tracker access;
+  the readiness checker's tool children, repository hooks, and Codex App
+  Server remove it while preserving normal environment values such as `PATH`.
 
 ## Verification
 
