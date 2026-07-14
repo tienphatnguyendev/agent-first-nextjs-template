@@ -45,8 +45,12 @@ compatible terminal aliases in the local workflow.
 The controller also stopped the shared Supabase stack and passed
 `pnpm symphony:check` with the Linear key supplied from macOS Keychain to the
 preflight process. The key value was not printed or written to this repository.
-Starting the live daemon, running the unlabeled control, and running the three
-labeled pilot issues remain pending.
+That result proves the host was ready at that time; it does not authorize
+startup after this repository contract changed. Full repository verification,
+a reviewed protected pull request, a human merge into remote `main`, and a
+fresh readiness preflight remain pending. Starting the live daemon, running the
+unlabeled control, and running the three labeled pilot issues also remain
+pending.
 
 Hex reported multiple security advisories in the pinned upstream locked
 dependencies during setup. Treat this service as preview software only. Run it
@@ -74,7 +78,6 @@ gh api repos/tienphatnguyendev/agent-first-nextjs-template/branches/main/protect
 
 Use these API-verified Linear values:
 
-- workspace: `Agentic Coding OS`
 - workspace URL slug: `aaron-solo`
 - team: `Solo`
 - project: `Agentic Coding OS`
@@ -128,6 +131,40 @@ mkdir -p ~/code/symphony-workspaces
 mkdir -p ~/Library/Logs/agentic-coding-os-symphony
 ```
 
+## Publish the repository contract before startup
+
+Every new issue workspace runs the `after_create` hook in `WORKFLOW.md`. That
+hook clones the remote repository without selecting another branch, so the
+workspace starts from the remote default branch, `main`. It does not copy the
+local feature branch or worktree that launches Symphony. Starting the daemon
+before this repository contract reaches remote `main` would therefore create
+workspaces from the old contract and is invalid.
+
+Complete this startup gate in order:
+
+1. Run the full repository verification on the reconciliation branch:
+   `pnpm verify`.
+2. Open or update a protected pull request. Obtain review and wait for the
+   required `Verify foundation` and `Build secure container` checks to pass.
+3. Have a human merge the pull request into remote `main`. Symphony and its
+   agent must not perform this merge.
+4. Use a clean operator checkout whose `HEAD` matches the updated remote
+   `main`.
+5. Stop the shared Supabase stack and run a fresh `pnpm symphony:check` from
+   that checkout with the Linear key in the process environment.
+
+After the human merge, confirm the operator checkout is at the updated remote
+`main` before the fresh preflight:
+
+```bash
+git fetch origin main
+test "$(git rev-parse HEAD)" = "$(git rev-parse origin/main)"
+git status --short
+```
+
+The status command must print nothing. Do not start Symphony if any gate above
+is incomplete.
+
 ## Export the process environment
 
 Open a dedicated zsh session for Symphony. Read the values into that shell and
@@ -164,22 +201,24 @@ pnpm exec supabase stop --no-backup
 
 ## Run the preflight
 
-From the repository checkout that contains this runbook, run the read-only
-readiness command:
+After the protected pull request is merged and the clean operator checkout
+matches remote `main`, run the read-only readiness command:
 
 ```bash
 pnpm symphony:check
 ```
 
-Do not start Symphony until this command exits with code 0. It checks the real
-`WORKFLOW.md`, required tools and `LINEAR_API_KEY`, the pinned checkout,
-GitHub authentication and branch protection, and the shared Supabase
-container. It does not create or repair external resources.
+Do not reuse the earlier preflight result. Do not start Symphony until this
+fresh command exits with code 0. It checks the real `WORKFLOW.md`, required
+tools and `LINEAR_API_KEY`, the pinned checkout, GitHub authentication and
+branch protection, and the shared Supabase container. It does not create or
+repair external resources.
 
 ## Start and observe
 
-After the preflight passes, keep Symphony in the foreground so its owner and
-stop signal stay clear. Run these exact commands from the repository checkout:
+After every startup gate and the fresh preflight pass, keep Symphony in the
+foreground so its owner and stop signal stay clear. Run these exact commands
+from the clean checkout at remote `main`:
 
 ```bash
 REPOSITORY_ROOT="$(git rev-parse --show-toplevel)"

@@ -12,8 +12,10 @@ Active. Repository implementation is active in the isolated
 are configured. Linear policy and readiness are verified. Daemon startup and
 live pilot issues remain pending.
 
-The next action is to start the local daemon only on loopback and run the
-control and pilot issues.
+The next action is to run full repository verification, obtain review and both
+required checks on a protected pull request, and have a human merge it into
+remote `main`. A clean operator checkout must then match remote `main` and pass
+a fresh readiness preflight before the daemon can start.
 
 ## Progress
 
@@ -37,7 +39,9 @@ control and pilot issues.
   The controller created and verified the label. No external Linear object
   identifier or API-key value was recorded.
 - 2026-07-14: Stopped the shared Supabase stack and passed the Keychain-backed
-  `pnpm symphony:check` preflight without printing or recording the key.
+  `pnpm symphony:check` preflight without printing or recording the key. This
+  was readiness evidence at that time, not final startup authorization after
+  the repository contract changed.
 - 2026-07-14: Reconciled `WORKFLOW.md`, the checker, tests, approved design,
   plans, and operator guide with the verified Linear state.
 - Pending live work: run and evaluate the unlabeled control issue and three
@@ -64,7 +68,13 @@ control and pilot issues.
   project identifier and port set.
 - Use protected pull requests, both required CI jobs, and human merges. Never
   allow Symphony to merge or push to `main`.
-- Finish repository reconciliation and review before starting the daemon.
+- Each issue workspace clones the remote repository default branch, `main`; it
+  does not copy the local launch worktree. Starting before the reconciled
+  contract reaches remote `main` is invalid.
+- Gate daemon startup on full repository verification, a reviewed protected
+  pull request with both required checks, a human merge into remote `main`, a
+  clean operator checkout at that remote commit, and a fresh readiness
+  preflight.
 
 ## Verification
 
@@ -87,7 +97,11 @@ control and pilot issues.
   `SOLO`, required states, and the newly created `symphony` label on
   2026-07-14.
 - Preflight: the controller stopped Supabase and the Keychain-backed
-  `pnpm symphony:check` passed on 2026-07-14.
-- Daemon startup: the live start and loopback status check are pending.
+  `pnpm symphony:check` passed on 2026-07-14. A fresh preflight after the human
+  merge remains required.
+- Startup gate: full `pnpm verify`, protected pull-request review and required
+  checks, human merge into remote `main`, clean operator checkout alignment,
+  and the fresh readiness preflight are pending.
+- Daemon startup: the live start and loopback status check remain pending.
 - Pilot success: the live checks and evidence in the approved design are
   pending.

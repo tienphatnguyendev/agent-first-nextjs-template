@@ -11,13 +11,14 @@
 ## Global Constraints
 
 - Pin OpenAI Symphony to commit `4cbe3a9699a73b862466c0b157ceca0c1985d6d7`.
-- Use Linear workspace `Agentic Coding OS` at URL slug `aaron-solo`, team `Solo`, project `Agentic Coding OS`, authoritative project URL `https://linear.app/aaron-solo/project/agentic-coding-os-0d02fd16cb9c/overview`, project slug `agentic-coding-os-0d02fd16cb9c`, team key `SOLO`, and required label `symphony`.
+- Use Linear workspace URL slug `aaron-solo`, team `Solo`, project `Agentic Coding OS`, authoritative project URL `https://linear.app/aaron-solo/project/agentic-coding-os-0d02fd16cb9c/overview`, project slug `agentic-coding-os-0d02fd16cb9c`, team key `SOLO`, and required label `symphony`.
 - Treat `Todo`, `In Progress`, and `Rework` as active; `Human Review` as non-active and non-terminal; and `Done`, `Closed`, `Cancelled`, `Canceled`, and `Duplicate` as terminal. Retain `Closed` and `Cancelled` as compatible aliases.
 - Use `~/code/openai-symphony` for the external checkout, `~/code/symphony-workspaces` for issue workspaces, and `127.0.0.1:4000` for the dashboard.
 - Limit Symphony to one concurrent agent because every checkout shares the same Supabase ports and project identifier.
 - Run `pnpm run setup` before agent work and stop Supabase after each run and before workspace deletion.
 - Use Codex `workspace-write`, network access, `approval_policy: never`, and a core shell environment with default secret filtering.
 - Require pull requests and both GitHub CI jobs; never merge automatically or push directly to `main`.
+- Each issue workspace clones the remote default branch, `main`. Do not start the daemon until full repository verification passes, a reviewed protected pull request passes both CI jobs, a human merges it into remote `main`, and a clean operator checkout at that commit passes a fresh readiness preflight.
 - Keep `LINEAR_API_KEY` in the Symphony process environment only. Never print or commit it. Store the non-secret project slug literally because the pinned Symphony revision does not expand that field.
 - Do not add a product API, database schema, Next.js module, background worker, production-container component, or deployment dependency.
 
@@ -103,6 +104,7 @@
 - [x] Confirm through Linear's API the workspace URL slug `aaron-solo`, `Solo` team with key `SOLO`, `Agentic Coding OS` project, `symphony` label, and required states. The controller created and verified the label. Keep external Linear object identifiers and the API-key value out of repository files.
 - [x] Install `mise`, clone OpenAI Symphony at the pinned commit, trust its version configuration, install its Erlang/Elixir versions, run `mix setup`, and build `bin/symphony`.
 - [x] Create the workspace/log directories, stop the shared Supabase stack, and run `pnpm symphony:check` with the API key supplied from macOS Keychain; the preflight exited with code 0 without printing the key.
+- [ ] Run full repository verification, obtain review and both required checks on a protected pull request, have a human merge into remote `main`, align a clean operator checkout with that remote commit, and pass a fresh readiness preflight.
 - [ ] Start Symphony with `--i-understand-that-this-will-be-running-without-the-usual-guardrails`, the repository's absolute `WORKFLOW.md`, external log root, and `--port 4000`. Confirm `/api/v1/state` responds only on loopback.
 - [x] Update the active execution plan with exact external versions and verification evidence.
 
@@ -163,10 +165,12 @@ remain pending.
   `symphony` label on 2026-07-14. The controller created the label before
   verifying it.
 - The controller stopped Supabase and the Keychain-backed
-  `pnpm symphony:check` preflight passed on 2026-07-14.
+  `pnpm symphony:check` preflight passed on 2026-07-14. Repository changes made
+  after that check require a fresh preflight before startup.
 - Task 4 passed 55 focused Symphony tests, all 173 unit tests, documentation
   validation, formatting, and TypeScript checking on 2026-07-14.
-- Required before repository handoff: `pnpm verify`.
-- Required again before daemon startup if local state changes:
+- Startup gate remains pending: full `pnpm verify`, a reviewed protected pull
+  request with both required checks, human merge into remote `main`, a clean
+  operator checkout at that remote commit, and a fresh
   `pnpm symphony:check`.
 - Required before pilot success: all live checks in Task 5.

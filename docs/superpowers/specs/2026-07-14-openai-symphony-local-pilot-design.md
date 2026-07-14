@@ -82,7 +82,6 @@ same Supabase project identifier and ports.
 
 The pilot will use these fixed Linear values:
 
-- Workspace: `Agentic Coding OS`
 - Workspace URL slug: `aaron-solo`
 - Team: `Solo`
 - Project: `Agentic Coding OS`
