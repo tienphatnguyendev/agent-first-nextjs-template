@@ -1,6 +1,8 @@
 # Quality
 
-`pnpm verify` is the complete local quality gate. It runs checks in this order:
+`pnpm verify` prepares persistent report directories and runs the complete local
+quality gate. The verification runner stops at the first failure and prints the
+exact command to reproduce and repair that check. It runs checks in this order:
 
 1. Documentation structure and local links
 2. Prettier formatting
@@ -15,6 +17,17 @@
 Each check must print a direct instruction that explains how to repair a
 failure. CI calls the same repository commands and keeps relevant reports,
 application logs, screenshots, and browser traces when a check fails.
+
+Task 9 adds the `test:e2e:run` command used by the ninth check. Until that
+command exists, run the first eight commands separately and stop after
+`pnpm build` instead of running `pnpm verify`.
+
+Unit and integration test runs keep readable results in the terminal and write
+JUnit XML reports to `artifacts/test-results/unit.xml` and
+`artifacts/test-results/integration.xml`. JUnit is a standard XML test-report
+format that CI systems can read. Run `pnpm artifacts:prepare` when a tool needs
+the report directories before a test starts. This command creates missing
+directories and keeps all existing evidence.
 
 Use focused checks from [DEVELOPMENT.md](DEVELOPMENT.md) while you edit. Add a
 test at the lowest useful level: unit tests for isolated behavior, integration

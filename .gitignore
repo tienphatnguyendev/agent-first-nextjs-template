@@ -6,6 +6,7 @@ node_modules/
 src/generated/prisma/
 supabase/.branches/
 supabase/.temp/
+# Generated test reports and other verification evidence
 artifacts/
 playwright-report/
 test-results/

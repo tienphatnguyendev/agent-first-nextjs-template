@@ -17,6 +17,10 @@ export default defineConfig({
     fileParallelism: false,
     include: ["tests/integration/**/*.test.ts"],
     maxWorkers: 1,
+    reporters: [
+      "default",
+      ["junit", { outputFile: "artifacts/test-results/integration.xml" }],
+    ],
     setupFiles: ["tests/integration/setup.ts"],
   },
 });

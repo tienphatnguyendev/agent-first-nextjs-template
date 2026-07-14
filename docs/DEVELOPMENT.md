@@ -36,8 +36,15 @@ pnpm build
 
 Run `pnpm test` when a change affects the database or more than one layer. Run
 `pnpm test:e2e` when a change affects browser behavior or the production build.
-Run `pnpm verify` before you finish. It runs all required checks in the order
-defined in [QUALITY.md](QUALITY.md).
+After the repository includes the `test:e2e:run` command, run `pnpm verify`
+before you finish. It runs all required checks in the order defined in
+[QUALITY.md](QUALITY.md). Before that browser command exists, run each check
+through `pnpm build` separately.
+
+Unit and integration tests show readable output in the terminal and also write
+stable JUnit XML reports under `artifacts/test-results/`. Run
+`pnpm artifacts:prepare` to create the test and Playwright artifact directories
+without deleting earlier evidence. Git ignores every file under `artifacts/`.
 
 Write a failing test before you change behavior. Confirm that it fails for the
 expected reason, add the smallest implementation, and rerun the focused test.

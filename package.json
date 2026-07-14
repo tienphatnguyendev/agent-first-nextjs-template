@@ -22,6 +22,8 @@
     "typecheck": "tsc --noEmit",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
+    "artifacts:prepare": "node --import tsx scripts/prepare-artifacts.ts",
+    "verify": "pnpm artifacts:prepare && node --import tsx scripts/verify.ts",
     "db:start": "node --import tsx scripts/database.ts start",
     "db:setup": "node --import tsx scripts/database.ts setup",
     "db:generate": "prisma generate",

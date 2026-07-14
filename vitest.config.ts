@@ -22,6 +22,9 @@ export default defineConfig({
       "tests/delivery/**/*.test.ts",
     ],
     setupFiles: ["tests/setup/vitest.ts"],
-    reporters: ["default"],
+    reporters: [
+      "default",
+      ["junit", { outputFile: "artifacts/test-results/unit.xml" }],
+    ],
   },
 });
