@@ -143,6 +143,13 @@ remain pending.
 - 2026-07-14: Stopped the shared Supabase stack and passed the Keychain-backed
   `pnpm symphony:check` preflight. Live daemon startup and pilot issues remain
   pending.
+- 2026-07-14: Fixed Next.js standalone output in nested Git worktrees. Focused
+  tests, independent review, production build, and 2 Playwright smoke tests
+  passed.
+- 2026-07-14: Full `pnpm verify` passed from the committed branch with 187 unit
+  tests, 3 integration tests, production build, 2 Playwright smoke tests, and
+  all static checks. The controller then stopped Supabase and passed the
+  Keychain-backed readiness check again.
 
 ## Decisions
 
@@ -169,8 +176,13 @@ remain pending.
   after that check require a fresh preflight before startup.
 - Task 4 passed 55 focused Symphony tests, all 173 unit tests, documentation
   validation, formatting, and TypeScript checking on 2026-07-14.
-- Startup gate remains pending: full `pnpm verify`, a reviewed protected pull
-  request with both required checks, human merge into remote `main`, a clean
-  operator checkout at that remote commit, and a fresh
-  `pnpm symphony:check`.
+- The worktree standalone fix passed 11 focused tests, independent review,
+  production build, and 2 Playwright smoke tests on 2026-07-14.
+- Full `pnpm verify` passed on 2026-07-14 with 187 unit tests, 3 integration
+  tests, production build, 2 Playwright smoke tests, and all static checks.
+- The controller stopped Supabase and the Keychain-backed
+  `pnpm symphony:check` passed again after full verification on 2026-07-14.
+- Startup gate remains pending: a reviewed protected pull request with both
+  required checks, human merge into remote `main`, a clean operator checkout
+  at that remote commit, and a fresh post-merge `pnpm symphony:check`.
 - Required before pilot success: all live checks in Task 5.

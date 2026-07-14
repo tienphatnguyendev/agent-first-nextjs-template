@@ -7,15 +7,16 @@ and its
 
 ## Status
 
-Active. Repository implementation is active in the isolated
-`codex/openai-symphony-pilot` worktree. GitHub and the external Symphony build
-are configured. Linear policy and readiness are verified. Daemon startup and
-live pilot issues remain pending.
+Active. Repository implementation and full local verification are complete in
+the isolated `codex/openai-symphony-pilot` worktree. GitHub and the external
+Symphony build are configured. Linear policy and readiness are verified.
+Protected pull-request delivery, daemon startup, and live pilot issues remain
+pending.
 
-The next action is to run full repository verification, obtain review and both
-required checks on a protected pull request, and have a human merge it into
-remote `main`. A clean operator checkout must then match remote `main` and pass
-a fresh readiness preflight before the daemon can start.
+The next action is to obtain whole-branch review and both required checks on a
+protected pull request, then have a human merge it into remote `main`. A clean
+operator checkout must then match remote `main` and pass a fresh readiness
+preflight before the daemon can start.
 
 ## Progress
 
@@ -44,6 +45,15 @@ a fresh readiness preflight before the daemon can start.
   the repository contract changed.
 - 2026-07-14: Reconciled `WORKFLOW.md`, the checker, tests, approved design,
   plans, and operator guide with the verified Linear state.
+- 2026-07-14: Reproduced and fixed Next.js standalone output nesting in Git
+  worktrees by pinning the file-tracing root and requiring the top-level
+  standalone entrypoint. Focused tests, independent review, and the browser
+  retry passed.
+- 2026-07-14: `pnpm verify` passed from the committed worktree state: 187 unit
+  tests, 3 integration tests, the production build, and 2 Playwright smoke
+  tests passed with all static checks. The controller then stopped Supabase,
+  restored Docker availability, and passed the Keychain-backed readiness check
+  without printing the key.
 - Pending live work: run and evaluate the unlabeled control issue and three
   labeled pilot issues.
 
@@ -96,12 +106,18 @@ a fresh readiness preflight before the daemon can start.
 - Linear policy: Linear's API verified the project, `Solo` team with key
   `SOLO`, required states, and the newly created `symphony` label on
   2026-07-14.
-- Preflight: the controller stopped Supabase and the Keychain-backed
-  `pnpm symphony:check` passed on 2026-07-14. A fresh preflight after the human
-  merge remains required.
-- Startup gate: full `pnpm verify`, protected pull-request review and required
-  checks, human merge into remote `main`, clean operator checkout alignment,
-  and the fresh readiness preflight are pending.
+- Worktree delivery fix: 11 focused tests, production build, independent
+  review, and 2 Playwright smoke tests passed on 2026-07-14.
+- Full repository gate: `pnpm verify` passed on 2026-07-14 with 187 unit tests,
+  3 integration tests, the production build, 2 Playwright smoke tests, and all
+  static checks.
+- Preflight: after full verification, the controller stopped Supabase,
+  restored Docker availability, and the Keychain-backed
+  `pnpm symphony:check` passed on 2026-07-14. A separate fresh preflight after
+  the human merge remains required.
+- Startup gate: full `pnpm verify` is complete. Protected pull-request review
+  and required checks, human merge into remote `main`, clean operator checkout
+  alignment, and the post-merge readiness preflight are pending.
 - Daemon startup: the live start and loopback status check remain pending.
 - Pilot success: the live checks and evidence in the approved design are
   pending.
