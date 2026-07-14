@@ -9,12 +9,11 @@ and its
 
 Active. Repository implementation is active in the isolated
 `codex/openai-symphony-pilot` worktree. GitHub and the external Symphony build
-are partially configured. Linear policy settings and daemon startup remain
-unverified.
+are configured. Linear policy and readiness are verified. Daemon startup and
+live pilot issues remain pending.
 
-The next action is to finish and review the repository workflow contract and
-operator guide. Then verify Linear policy, run readiness, and start the local
-daemon only on loopback.
+The next action is to start the local daemon only on loopback and run the
+control and pilot issues.
 
 ## Progress
 
@@ -33,10 +32,14 @@ daemon only on loopback.
   dependencies. The pilot remains preview-only and must stay on a trusted
   project and loopback dashboard. This evidence does not establish production
   safety.
-- Remaining repository work: finish and review `WORKFLOW.md` and the operator
-  guide.
-- Pending external work: verify the Linear team, project, label, and states;
-  export the API key; and verify readiness.
+- 2026-07-14: Verified through Linear's API the `Agentic Coding OS` project,
+  `Solo` team with key `SOLO`, required workflow states, and `symphony` label.
+  The controller created and verified the label. No external Linear object
+  identifier or API-key value was recorded.
+- 2026-07-14: Stopped the shared Supabase stack and passed the Keychain-backed
+  `pnpm symphony:check` preflight without printing or recording the key.
+- 2026-07-14: Reconciled `WORKFLOW.md`, the checker, tests, approved design,
+  plans, and operator guide with the verified Linear state.
 - Pending live work: run and evaluate the unlabeled control issue and three
   labeled pilot issues.
 
@@ -46,12 +49,14 @@ daemon only on loopback.
   CI runtime.
 - Pin the Elixir reference implementation to commit
   `4cbe3a9699a73b862466c0b157ceca0c1985d6d7`.
-- Use the `Symphony Pilot` Linear team, the `Agentic Coding OS` project at slug
-  `agentic-coding-os-0d02fd16cb9c`, and require the `symphony` label before
-  dispatch. The supplied
+- Use the `Solo` Linear team with key `SOLO`, the `Agentic Coding OS` project at
+  slug `agentic-coding-os-0d02fd16cb9c`, and require the verified `symphony`
+  label before dispatch. The supplied
   `https://linear.app/aaron-solo/project/agentic-coding-os-0d02fd16cb9c/overview`
-  URL is authoritative, but the external Linear policy settings remain
-  unverified.
+  URL is authoritative. Linear's API verified the project, team, required
+  states, and label.
+- Configure terminal states as `Done`, `Closed`, `Cancelled`, `Canceled`, and
+  `Duplicate`. Retain `Closed` and `Cancelled` as compatible aliases.
 - Store the non-secret Linear project slug literally in `WORKFLOW.md`. The
   pinned Symphony revision expands `LINEAR_API_KEY` but does not expand an
   environment variable in `tracker.project_slug`.
@@ -59,7 +64,7 @@ daemon only on loopback.
   project identifier and port set.
 - Use protected pull requests, both required CI jobs, and human merges. Never
   allow Symphony to merge or push to `main`.
-- Finish repository review and verify Linear policy before starting the daemon.
+- Finish repository reconciliation and review before starting the daemon.
 
 ## Verification
 
@@ -75,10 +80,14 @@ daemon only on loopback.
   `mix build`, `bin/symphony`, and runtime directories were verified by the
   controller on 2026-07-14. Hex dependency advisories remain an accepted
   preview-only risk, not evidence of production safety.
-- Repository handoff: `pnpm verify` is pending.
-- Linear policy: the authoritative URL and slug are recorded; team, label, and
-  state verification is pending.
-- Daemon startup: `pnpm symphony:check` and the loopback status check are
-  pending.
+- Task 4 repository checks: 55 focused Symphony tests and all 173 unit tests
+  passed. Documentation validation, formatting, and TypeScript checking also
+  passed on 2026-07-14.
+- Linear policy: Linear's API verified the project, `Solo` team with key
+  `SOLO`, required states, and the newly created `symphony` label on
+  2026-07-14.
+- Preflight: the controller stopped Supabase and the Keychain-backed
+  `pnpm symphony:check` passed on 2026-07-14.
+- Daemon startup: the live start and loopback status check are pending.
 - Pilot success: the live checks and evidence in the approved design are
   pending.

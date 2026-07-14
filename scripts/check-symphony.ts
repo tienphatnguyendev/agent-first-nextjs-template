@@ -217,8 +217,14 @@ function validateWorkflow(config: Record<string, unknown>): ReadinessIssue[] {
   requireValue(
     ["tracker", "terminal_states"],
     (value) =>
-      hasExactStrings(value, ["Done", "Closed", "Cancelled", "Duplicate"]),
-    '["Done", "Closed", "Cancelled", "Duplicate"]',
+      hasExactStrings(value, [
+        "Done",
+        "Closed",
+        "Cancelled",
+        "Canceled",
+        "Duplicate",
+      ]),
+    '["Done", "Closed", "Cancelled", "Canceled", "Duplicate"]',
   );
   requireValue(
     ["polling", "interval_ms"],

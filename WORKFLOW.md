@@ -14,6 +14,7 @@ tracker:
     - Done
     - Closed
     - Cancelled
+    - Canceled
     - Duplicate
 polling:
   interval_ms: 30000

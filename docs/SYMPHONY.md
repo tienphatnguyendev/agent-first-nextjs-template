@@ -2,8 +2,8 @@
 
 This guide operates the experimental OpenAI Symphony service on one controlled
 macOS developer machine. Symphony stays outside the application and production
-runtime. These steps describe the full setup; they do not mean that every
-external or Linear setting has been verified.
+runtime. These steps describe the full setup. The evidence below separates
+verified preparation from the daemon and pilot work that remains pending.
 
 The fixed local paths and address are:
 
@@ -34,6 +34,20 @@ for `main`. It also verified `mise` 2026.7.5, the pinned checkout under
 workspace and log directories. This evidence does not verify the Linear team,
 label, or state settings, and it does not show that the daemon has started.
 
+The controller then verified the project, team, required workflow states, and
+label through Linear's API. The verified workspace URL slug is `aaron-solo`;
+the project is `Agentic Coding OS`; and the team is `Solo` with key `SOLO`.
+The API-verified states are `Todo`, `In Progress`, `Rework`, `Human Review`,
+`Done`, `Canceled`, and `Duplicate`. The controller created the `symphony`
+label and verified it through the same API. `Closed` and `Cancelled` remain
+compatible terminal aliases in the local workflow.
+
+The controller also stopped the shared Supabase stack and passed
+`pnpm symphony:check` with the Linear key supplied from macOS Keychain to the
+preflight process. The key value was not printed or written to this repository.
+Starting the live daemon, running the unlabeled control, and running the three
+labeled pilot issues remain pending.
+
 Hex reported multiple security advisories in the pinned upstream locked
 dependencies during setup. Treat this service as preview software only. Run it
 for this trusted project on a controlled developer machine, keep the dashboard
@@ -58,19 +72,25 @@ settings without changing them:
 gh api repos/tienphatnguyendev/agent-first-nextjs-template/branches/main/protection
 ```
 
-Create these Linear values:
+Use these API-verified Linear values:
 
 - workspace: `Agentic Coding OS`
-- team: `Symphony Pilot`
+- workspace URL slug: `aaron-solo`
+- team: `Solo`
 - project: `Agentic Coding OS`
 - project URL:
   `https://linear.app/aaron-solo/project/agentic-coding-os-0d02fd16cb9c/overview`
 - project slug: `agentic-coding-os-0d02fd16cb9c`
-- team key: `SYM`
+- team key: `SOLO`
 - required issue label: `symphony`
 - active states: `Todo`, `In Progress`, and `Rework`
 - review state: `Human Review`, which must be neither active nor terminal
-- terminal states: `Done`, `Closed`, `Cancelled`, and `Duplicate`
+- terminal states: `Done`, `Closed`, `Cancelled`, `Canceled`, and `Duplicate`
+
+Linear's API verified the project, team, required states, and label on
+2026-07-14. It also verified that the `symphony` label exists after the
+controller created it. Do not copy external Linear object identifiers into
+repository files or operator notes.
 
 Create a Linear personal API key under **Settings -> Security & access ->
 Personal API keys**. Do not put the API key in a repository file, `.env`, shell
@@ -267,7 +287,8 @@ in the one Linear workpad comment before asking the operator for help.
 
 After a human merges the pull request, move the issue to `Done`. Symphony runs
 the cleanup hook and removes its workspace. It also removes workspaces for
-`Closed`, `Cancelled`, and `Duplicate` issues. Check the expected result:
+`Closed`, `Cancelled`, `Canceled`, and `Duplicate` issues. Check the expected
+result:
 
 ```bash
 ISSUE_WORKSPACE=replace-with-directory-name

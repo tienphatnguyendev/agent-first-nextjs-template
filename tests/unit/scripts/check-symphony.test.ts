@@ -102,6 +102,7 @@ tracker:
     - Done
     - Closed
     - Cancelled
+    - Canceled
     - Duplicate
 polling:
   interval_ms: 30000
@@ -211,6 +212,7 @@ describe("checkSymphonyReadiness", () => {
     ]);
     expect(workflow).toContain(pinnedRevision);
     expect(workflow).toContain(`project_slug: ${projectSlug}`);
+    expect(workflow).toContain("    - Canceled");
     expect(workflow).not.toContain("$LINEAR_PROJECT_SLUG");
     expect(workflow).toContain("host: 127.0.0.1");
     expect(workflow).toContain("AGENTS.md");
@@ -295,6 +297,22 @@ describe("checkSymphonyReadiness", () => {
 
     expect(issues).toContainEqual(
       expect.objectContaining({ code: "unsafe-workflow" }),
+    );
+  });
+
+  it("rejects terminal states without Canceled", async () => {
+    writeFileSync(
+      join(root, "WORKFLOW.md"),
+      validWorkflow.replace("    - Canceled\n", ""),
+    );
+
+    const issues = await checkSymphonyReadiness(options());
+
+    expect(issues).toContainEqual(
+      expect.objectContaining({
+        code: "unsafe-workflow",
+        message: expect.stringContaining("tracker.terminal_states"),
+      }),
     );
   });
 

@@ -11,8 +11,8 @@
 ## Global Constraints
 
 - Pin OpenAI Symphony to commit `4cbe3a9699a73b862466c0b157ceca0c1985d6d7`.
-- Use Linear workspace `Agentic Coding OS`, team `Symphony Pilot`, project `Agentic Coding OS`, authoritative project URL `https://linear.app/aaron-solo/project/agentic-coding-os-0d02fd16cb9c/overview`, project slug `agentic-coding-os-0d02fd16cb9c`, team key `SYM`, and required label `symphony`.
-- Treat `Todo`, `In Progress`, and `Rework` as active; `Human Review` as non-active and non-terminal; and `Done`, `Closed`, `Cancelled`, and `Duplicate` as terminal.
+- Use Linear workspace `Agentic Coding OS` at URL slug `aaron-solo`, team `Solo`, project `Agentic Coding OS`, authoritative project URL `https://linear.app/aaron-solo/project/agentic-coding-os-0d02fd16cb9c/overview`, project slug `agentic-coding-os-0d02fd16cb9c`, team key `SOLO`, and required label `symphony`.
+- Treat `Todo`, `In Progress`, and `Rework` as active; `Human Review` as non-active and non-terminal; and `Done`, `Closed`, `Cancelled`, `Canceled`, and `Duplicate` as terminal. Retain `Closed` and `Cancelled` as compatible aliases.
 - Use `~/code/openai-symphony` for the external checkout, `~/code/symphony-workspaces` for issue workspaces, and `127.0.0.1:4000` for the dashboard.
 - Limit Symphony to one concurrent agent because every checkout shares the same Supabase ports and project identifier.
 - Run `pnpm run setup` before agent work and stop Supabase after each run and before workspace deletion.
@@ -100,11 +100,11 @@
 
 - [x] Repair `gh` authentication for the existing personal account.
 - [x] Protect `main`: require pull requests, require `Verify foundation` and `Build secure container`, block force pushes and deletion, and apply protection to administrators without requiring a second reviewer account.
-- [ ] Confirm the Linear workspace, `Symphony Pilot` team, `Agentic Coding OS` project, `symphony` label, `Human Review` state, and `Rework` state. Export only the personal API key in the Symphony shell; keep the authoritative non-secret project slug in `WORKFLOW.md`.
+- [x] Confirm through Linear's API the workspace URL slug `aaron-solo`, `Solo` team with key `SOLO`, `Agentic Coding OS` project, `symphony` label, and required states. The controller created and verified the label. Keep external Linear object identifiers and the API-key value out of repository files.
 - [x] Install `mise`, clone OpenAI Symphony at the pinned commit, trust its version configuration, install its Erlang/Elixir versions, run `mix setup`, and build `bin/symphony`.
-- [ ] Create the workspace/log directories and run `pnpm symphony:check`; expect exit code 0 before starting the daemon.
+- [x] Create the workspace/log directories, stop the shared Supabase stack, and run `pnpm symphony:check` with the API key supplied from macOS Keychain; the preflight exited with code 0 without printing the key.
 - [ ] Start Symphony with `--i-understand-that-this-will-be-running-without-the-usual-guardrails`, the repository's absolute `WORKFLOW.md`, external log root, and `--port 4000`. Confirm `/api/v1/state` responds only on loopback.
-- [ ] Update the active execution plan with exact external versions and verification evidence.
+- [x] Update the active execution plan with exact external versions and verification evidence.
 
 ### Task 5: Run and Evaluate the Three-Issue Pilot
 
@@ -123,7 +123,8 @@
 
 Active. Repository implementation continues in an isolated worktree. GitHub
 authentication and protection and the external pinned build are verified.
-Linear policy, readiness, and daemon startup remain pending.
+Linear policy and readiness are verified. Daemon startup and live pilot issues
+remain pending.
 
 ## Progress
 
@@ -133,12 +134,20 @@ Linear policy, readiness, and daemon startup remain pending.
   Elixir 1.19.5-otp-28, `mix setup`, `mix build`, `bin/symphony`, and the
   external workspace and log directories. Hex reported multiple advisories in
   the pinned locked dependencies, so the pilot remains preview-only.
+- 2026-07-14: Verified the project, `Solo` team with key `SOLO`, required
+  workflow states, and `symphony` label through Linear's API. The controller
+  created and verified the label. No external Linear object identifier or
+  API-key value was recorded.
+- 2026-07-14: Stopped the shared Supabase stack and passed the Keychain-backed
+  `pnpm symphony:check` preflight. Live daemon startup and pilot issues remain
+  pending.
 
 ## Decisions
 
 - Keep Symphony external to the product application.
-- Use the `Symphony Pilot` Linear team, the `Agentic Coding OS` project with
-  literal slug `agentic-coding-os-0d02fd16cb9c`, and a required dispatch label.
+- Use the `Solo` Linear team with key `SOLO`, the `Agentic Coding OS` project
+  with literal slug `agentic-coding-os-0d02fd16cb9c`, and the verified
+  `symphony` dispatch label.
 - Keep the preview service on a trusted project and bind its dashboard to
   loopback. The dependency advisories prevent any claim of production safety.
 - Use one fully unattended local agent with human PR merging and enforced branch protection.
@@ -150,6 +159,14 @@ Linear policy, readiness, and daemon startup remain pending.
 - GitHub authentication and `main` protection were verified on 2026-07-14.
 - The pinned external build and runtime directories were verified on
   2026-07-14; Hex dependency advisories remain a preview-only risk.
+- Linear's API verified the project, team, required workflow states, and
+  `symphony` label on 2026-07-14. The controller created the label before
+  verifying it.
+- The controller stopped Supabase and the Keychain-backed
+  `pnpm symphony:check` preflight passed on 2026-07-14.
+- Task 4 passed 55 focused Symphony tests, all 173 unit tests, documentation
+  validation, formatting, and TypeScript checking on 2026-07-14.
 - Required before repository handoff: `pnpm verify`.
-- Required before daemon startup: `pnpm symphony:check`.
+- Required again before daemon startup if local state changes:
+  `pnpm symphony:check`.
 - Required before pilot success: all live checks in Task 5.

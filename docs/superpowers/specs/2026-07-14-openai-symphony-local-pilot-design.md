@@ -83,9 +83,10 @@ same Supabase project identifier and ports.
 The pilot will use these fixed Linear values:
 
 - Workspace: `Agentic Coding OS`
-- Team: `Symphony Pilot`
+- Workspace URL slug: `aaron-solo`
+- Team: `Solo`
 - Project: `Agentic Coding OS`
-- Team key: `SYM`
+- Team key: `SOLO`
 - Required dispatch label: `symphony`
 - Project slug: `agentic-coding-os-0d02fd16cb9c`
 
@@ -97,6 +98,13 @@ The pinned Symphony revision does not expand an environment variable in
 `tracker.project_slug`, so the repository must store this non-secret slug as a
 literal. `LINEAR_API_KEY` remains the only Linear secret.
 
+On 2026-07-14, the controller verified the project, team, required workflow
+states, and label through Linear's API. The controller created the `symphony`
+label and verified it through the same API. The API-verified states are `Todo`,
+`In Progress`, `Rework`, `Human Review`, `Done`, `Canceled`, and `Duplicate`.
+The workflow also retains `Closed` and `Cancelled` as compatible terminal
+aliases. No Linear object identifier or API-key value belongs in this design.
+
 | State | Category | Required behavior |
 | --- | --- | --- |
 | `Todo` | Active | Symphony may dispatch the labeled issue. The agent moves it to `In Progress` before implementation. |
@@ -104,7 +112,7 @@ literal. `LINEAR_API_KEY` remains the only Linear secret.
 | `Rework` | Active | Symphony resumes the preserved workspace and the agent handles human feedback. |
 | `Human Review` | Non-active, non-terminal | Symphony stops active work but preserves the workspace while a human reviews the pull request. |
 | `Done` | Terminal | Symphony stops work and removes the workspace after the human has merged the pull request. |
-| `Closed`, `Cancelled`, `Duplicate` | Terminal | Symphony stops work and removes the workspace without further implementation. |
+| `Closed`, `Cancelled`, `Canceled`, `Duplicate` | Terminal | Symphony stops work and removes the workspace without further implementation. `Closed` and `Cancelled` remain compatible aliases. |
 
 The normal path is:
 
