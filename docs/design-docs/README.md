@@ -8,3 +8,4 @@ index. Put lasting individual choices in the
 ## Approved designs
 
 - [Agent-First Modular Monolith Foundation](../superpowers/specs/2026-07-13-agent-first-modular-monolith-design.md)
+- [OpenAI Symphony Local Pilot](../superpowers/specs/2026-07-14-openai-symphony-local-pilot-design.md)

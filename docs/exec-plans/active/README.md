@@ -8,4 +8,6 @@ Link every active plan from this index. Move it to the
 [completed index](../completed/README.md) after all work and verification
 finish.
 
-There are no active repository plans in this directory yet.
+## Active plans
+
+- [OpenAI Symphony Local Pilot](2026-07-14-openai-symphony-pilot.md)

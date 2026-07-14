@@ -8,4 +8,6 @@ References provide context. They do not replace approved
 [design documents](../design-docs/README.md),
 [product specifications](../product-specs/README.md), or repository rules.
 
-There are no local reference notes yet.
+## Local reference notes
+
+- [OpenAI Symphony Sources](openai-symphony.md)
