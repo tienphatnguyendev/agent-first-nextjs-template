@@ -110,6 +110,17 @@ function hasExactStrings(value: unknown, expected: readonly string[]): boolean {
   );
 }
 
+function hasExactKeys(
+  value: Record<string, unknown>,
+  expected: readonly string[],
+): boolean {
+  const actual = Object.keys(value);
+  return (
+    actual.length === expected.length &&
+    expected.every((key) => Object.hasOwn(value, key))
+  );
+}
+
 function hasExactCommandLines(
   value: unknown,
   expected: readonly string[],
@@ -273,16 +284,61 @@ function validateWorkflow(config: Record<string, unknown>): ReadinessIssue[] {
     '"workspace-write"',
   );
   requireValue(
-    ["codex", "turn_sandbox_policy", "type"],
-    (value) => value === "workspaceWrite",
-    '"workspaceWrite"',
-  );
-  requireValue(
-    ["codex", "turn_sandbox_policy", "networkAccess"],
-    (value) => value === true,
-    "true",
+    ["codex", "turn_sandbox_policy"],
+    (value) =>
+      isRecord(value) &&
+      hasExactKeys(value, ["type", "networkAccess"]) &&
+      value.type === "workspaceWrite" &&
+      value.networkAccess === true,
+    'exactly { type: "workspaceWrite", networkAccess: true }',
   );
 
+  return issues;
+}
+
+const promptRequirements: readonly {
+  readonly behavior: string;
+  readonly patterns: readonly RegExp[];
+}[] = [
+  { behavior: "repository guidance", patterns: [/\brepository guidance\b/i] },
+  {
+    behavior: "one Linear workpad",
+    patterns: [/\bone Linear workpad\b/i],
+  },
+  {
+    behavior: "test-driven development",
+    patterns: [/\btest-driven development\b/i],
+  },
+  { behavior: "focused checks", patterns: [/\bfocused checks\b/i] },
+  { behavior: "pnpm verify", patterns: [/\bpnpm verify\b/i] },
+  { behavior: "a feature branch", patterns: [/\bfeature branch\b/i] },
+  { behavior: "a pull request", patterns: [/\bpull request\b/i] },
+  { behavior: "CI evidence", patterns: [/\bCI evidence\b/i] },
+  { behavior: "Human Review", patterns: [/\bHuman Review\b/i] },
+  {
+    behavior: "resuming Rework",
+    patterns: [/\bRework\b/i, /\bresume\b/i],
+  },
+  { behavior: "recording blockers", patterns: [/\bblockers\b/i] },
+  { behavior: "never merging", patterns: [/\bnever merge\b/i] },
+  {
+    behavior: "never pushing to main",
+    patterns: [/\bnever push\b/i, /\bmain\b/i],
+  },
+];
+
+function validatePrompt(prompt: string): ReadinessIssue[] {
+  const issues: ReadinessIssue[] = [];
+  for (const requirement of promptRequirements) {
+    if (!requirement.patterns.every((pattern) => pattern.test(prompt))) {
+      issues.push(
+        issue(
+          "unsafe-workflow",
+          `WORKFLOW.md prompt must require ${requirement.behavior}.`,
+        ),
+      );
+    }
+  }
   return issues;
 }
 
@@ -405,6 +461,7 @@ export async function checkSymphonyReadiness(
       await readFile(resolve(cwd, "WORKFLOW.md"), "utf8"),
     );
     issues.push(...validateWorkflow(workflow.config));
+    issues.push(...validatePrompt(workflow.prompt));
   } catch (error) {
     const fileError = error as NodeJS.ErrnoException;
     if (fileError.code === "ENOENT") {

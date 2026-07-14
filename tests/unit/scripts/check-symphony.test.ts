@@ -27,6 +27,18 @@ const validProtection = {
   allow_deletions: { enabled: false },
 };
 
+const validPrompt = `Read repository guidance.
+Maintain one Linear workpad comment.
+Use test-driven development.
+Run focused checks, then run pnpm verify.
+Work on a feature branch and open a pull request.
+Record CI evidence.
+Move the issue to Human Review.
+If the issue returns for Rework, resume existing work.
+Record blockers.
+Never merge the pull request.
+Never push directly to main.`;
+
 const validWorkflow = `---
 tracker:
   kind: linear
@@ -69,7 +81,7 @@ codex:
     type: workspaceWrite
     networkAccess: true
 ---
-Work only on the supplied issue.
+${validPrompt}
 `;
 
 const success = (stdout = ""): CommandResult => ({
@@ -237,6 +249,74 @@ describe("checkSymphonyReadiness", () => {
       expect.objectContaining({ code: "unsafe-workflow" }),
     );
   });
+
+  it("rejects extra turn sandbox policy keys", async () => {
+    writeFileSync(
+      join(root, "WORKFLOW.md"),
+      validWorkflow.replace(
+        "    networkAccess: true",
+        "    networkAccess: true\n    writableRoots:\n      - /",
+      ),
+    );
+
+    const issues = await checkSymphonyReadiness(options());
+
+    expect(issues).toContainEqual(
+      expect.objectContaining({
+        code: "unsafe-workflow",
+        message: expect.stringContaining("codex.turn_sandbox_policy"),
+      }),
+    );
+  });
+
+  it.each([
+    ["repository guidance", "repository guidance", "project notes"],
+    ["one Linear workpad", "one Linear workpad comment", "a status comment"],
+    [
+      "test-driven development",
+      "test-driven development",
+      "incremental development",
+    ],
+    ["focused checks", "focused checks", "small commands"],
+    ["pnpm verify", "pnpm verify", "pnpm test"],
+    ["feature branch", "feature branch", "working branch"],
+    ["pull request", "pull request", "change request"],
+    ["CI evidence", "CI evidence", "automation output"],
+    ["Human Review", "Human Review", "Reviewer Queue"],
+    [
+      "Rework resume",
+      "If the issue returns for Rework, resume existing work.",
+      "Continue requested work.",
+    ],
+    ["blockers", "blockers", "problems"],
+    ["never merge", "Never merge", "Do not finalize"],
+    [
+      "never push to main",
+      "Never push directly to main",
+      "Avoid protected branches",
+    ],
+  ])(
+    "rejects a prompt without %s behavior",
+    async (_name, required, absent) => {
+      const promptWithoutBehavior = validPrompt.split(required).join(absent);
+      const workflow = validWorkflow.replace(
+        validPrompt,
+        promptWithoutBehavior,
+      );
+      writeFileSync(join(root, "WORKFLOW.md"), workflow);
+
+      expect(workflow).toContain("    - Rework");
+
+      const issues = await checkSymphonyReadiness(options());
+
+      expect(issues).toContainEqual(
+        expect.objectContaining({
+          code: "unsafe-workflow",
+          message: expect.stringContaining("prompt"),
+        }),
+      );
+    },
+  );
 
   it.each([
     {
