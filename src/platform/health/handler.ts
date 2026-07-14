@@ -23,7 +23,11 @@ export function createHealthHandler(dependencies: HealthDependencies) {
         headers,
       });
     } catch (error) {
-      dependencies.logFailure(correlationId, error);
+      try {
+        dependencies.logFailure(correlationId, error);
+      } catch {
+        // A logging failure must not replace the safe health response.
+      }
       return new Response(
         JSON.stringify({ status: "unavailable", correlationId }),
         { status: 503, headers },
