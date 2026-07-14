@@ -140,4 +140,25 @@ describe("runProductionServer", () => {
     expect(stderr.text()).toContain("Failed command: pnpm start");
     expect(existsSync(join(root, "artifacts/application.log"))).toBe(true);
   });
+
+  it("reports and preserves an ordinary non-zero child exit status", async () => {
+    const child = new FakeChild();
+    const stderr = captureStream();
+    const result = runProductionServer({
+      cwd: root,
+      spawn: () => child,
+      stderr: stderr.stream,
+      processSignals: new EventEmitter(),
+    });
+
+    child.emit("close", 7, null);
+
+    await expect(result).resolves.toBe(7);
+    expect(stderr.text()).toContain("Command exited with status 7");
+    expect(stderr.text()).toContain("Failed command: pnpm start");
+    expect(stderr.text()).toContain("Repair:");
+    expect(
+      readFileSync(join(root, "artifacts/application.log"), "utf8"),
+    ).toContain("Command exited with status 7");
+  });
 });

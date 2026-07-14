@@ -63,10 +63,11 @@ pnpm run container:build
 pnpm run container:check
 ```
 
-The multi-stage image copies only the public files and standalone Next.js
-runtime into its final stage. It runs as the non-root `nextjs` user. Non-root
-means the application does not have administrator access inside the container.
-The image health check calls `GET /api/health` on port 3000.
+The post-build step makes the standalone Next.js directory complete by adding
+the public and static files. The multi-stage image copies that complete
+directory once into its final stage. It runs as the non-root `nextjs` user.
+Non-root means the application does not have administrator access inside the
+container. The image health check calls `GET /api/health` on port 3000.
 
 The build uses a fixed, local-only placeholder for Prisma code generation. It
 does not receive real database values. Supply `DATABASE_URL`, `DIRECT_URL`, and

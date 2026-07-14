@@ -39,4 +39,18 @@ describe("parseServerEnv", () => {
       expect(String(error)).not.toContain("very-secret");
     }
   });
+
+  it("rejects an HTTP URL without exposing its secret text", () => {
+    const secret = "http://user:very-secret@example.com/app";
+
+    try {
+      parseServerEnv({ DATABASE_URL: secret, DIRECT_URL: localUrl });
+      expect.fail("Expected environment validation to reject an HTTP URL");
+    } catch (error) {
+      expect(error).toBeInstanceOf(EnvironmentValidationError);
+      expect(String(error)).toContain("DATABASE_URL");
+      expect(String(error)).not.toContain("very-secret");
+      expect(String(error)).not.toContain(secret);
+    }
+  });
 });

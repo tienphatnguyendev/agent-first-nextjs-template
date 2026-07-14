@@ -38,8 +38,10 @@ The production image contains a Docker health check that calls
 `GET /api/health` on port 3000. The image therefore reports failure when the
 application or its database connection is unavailable. The final image starts
 the standalone Next.js server with Node.js and runs as the non-root `nextjs`
-user. `pnpm run container:check` inspects the image user and prints a repair
-instruction when the image is missing or unsafe.
+user. The post-build step completes the standalone directory, so the final
+image copies that directory once instead of copying public and static files a
+second time. `pnpm run container:check` inspects the image user and prints a
+repair instruction when the image is missing or unsafe.
 
 GitHub Actions gives verification 30 minutes and container checks 20 minutes.
 It cancels an older run for the same branch when a newer run starts. On failure,

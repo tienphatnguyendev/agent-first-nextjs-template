@@ -31,10 +31,11 @@ unavailable responses copy the request correlation ID into the
 `x-correlation-id` header.
 
 The production Docker build uses separate dependency, build, and runtime
-stages. The final stage copies only `public`, the standalone Next.js server, and
-static Next.js files. It runs as the non-root `nextjs` operating-system user.
-Use `pnpm run container:check` to inspect this policy after every image build.
-The shared build stage installs OpenSSL for Prisma generation and removes the
+stages. The post-build step places `public` and static Next.js files inside the
+standalone output. The final stage copies that complete output once and runs as
+the non-root `nextjs` operating-system user. Use
+`pnpm run container:check` to inspect this policy after every image build. The
+shared build stage installs OpenSSL for Prisma generation and removes the
 package-list cache. The final runtime stage does not install this build tool.
 
 `.dockerignore` keeps `.env` files, dependencies, build output, test evidence,

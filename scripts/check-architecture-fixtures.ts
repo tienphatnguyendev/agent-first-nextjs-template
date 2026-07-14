@@ -2,6 +2,8 @@ import { spawnSync } from "node:child_process";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
+import { checkClientDirectiveFileNames } from "./check-client-directives";
+
 interface Fixture {
   readonly name: string;
   readonly expectedRule?: string;
@@ -26,6 +28,7 @@ interface TextOutput {
 
 const fixtures: readonly Fixture[] = [
   { name: "valid-public-import" },
+  { name: "valid-layer-imports" },
   {
     name: "app-private-import",
     expectedRule: "no-app-private-module-imports",
@@ -45,6 +48,26 @@ const fixtures: readonly Fixture[] = [
   {
     name: "client-server-import",
     expectedRule: "no-client-server-imports",
+  },
+  {
+    name: "client-directive-filename",
+    expectedRule: "client-directive-requires-client-filename",
+  },
+  {
+    name: "domain-platform-import",
+    expectedRule: "no-domain-outside-layer",
+  },
+  {
+    name: "domain-generated-prisma-import",
+    expectedRule: "no-domain-outside-layer",
+  },
+  {
+    name: "application-platform-import",
+    expectedRule: "no-application-outside-layers",
+  },
+  {
+    name: "ui-infrastructure-import",
+    expectedRule: "no-ui-infrastructure-imports",
   },
 ];
 
@@ -136,8 +159,26 @@ function explainFailure(fixture: Fixture, message: string) {
   );
 }
 
+function runFixtureChecks(fixture: Fixture) {
+  const sourcePath = path.join(fixtureRoot, fixture.name, "src");
+  const sourceOutput: string[] = [];
+  const sourceExitCode = checkClientDirectiveFileNames(
+    sourcePath,
+    (message) => {
+      sourceOutput.push(message);
+      process.stderr.write(message);
+    },
+  );
+  const dependencyResult = runDependencyCruiser(fixture);
+
+  return {
+    exitCode: sourceExitCode !== 0 ? sourceExitCode : dependencyResult.exitCode,
+    output: `${sourceOutput.join("")}${dependencyResult.output}`,
+  };
+}
+
 function verifyFixture(fixture: Fixture): boolean {
-  const result = runDependencyCruiser(fixture);
+  const result = runFixtureChecks(fixture);
 
   if (!fixture.expectedRule) {
     if (result.exitCode === 0) return true;
@@ -174,7 +215,7 @@ function main(args: readonly string[]) {
       );
       process.exitCode = 1;
     } else {
-      process.exitCode = runDependencyCruiser(fixture).exitCode;
+      process.exitCode = runFixtureChecks(fixture).exitCode;
     }
   } else {
     const failures = fixtures.filter((fixture) => !verifyFixture(fixture));

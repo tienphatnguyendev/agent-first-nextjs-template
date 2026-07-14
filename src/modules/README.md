@@ -18,15 +18,21 @@ Use this exact shape for every future module:
 The directories have these import rules:
 
 - `domain/` contains business rules and plain TypeScript types. It must not
-  import React, Next.js, Prisma, another layer, or an external service client.
+  import React, Next.js, Prisma, generated code, platform code, Node.js
+  built-ins, another layer, or an external package.
 - `application/` contains use cases and interfaces that describe required
-  technical work. It can import only the module's `domain/` code.
+  technical work. Its files can import the same module's `application/` and
+  `domain/` code. They can use another module only through its public
+  `index.ts`. They cannot import platform, generated, UI, infrastructure,
+  Node.js built-ins, or external packages.
 - `infrastructure/` implements application interfaces for databases and
   external services. It can import `application/`, `domain/`, and server code
   from `src/platform/`.
 - `ui/` contains React components and server actions. It can use application
-  use cases and the module's public types. A client file must not reach server
-  database, environment, or logging code.
+  use cases and the module's public types. It cannot import infrastructure
+  directly. A file with a top-level `"use client"` directive must use the
+  `.client.*` filename suffix and must not reach server database, environment,
+  or logging code.
 - `index.ts` exposes only the interfaces that the module intentionally makes
   public. Keep internal helpers and implementation details private.
 

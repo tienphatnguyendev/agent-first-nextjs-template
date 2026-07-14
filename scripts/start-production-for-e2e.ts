@@ -153,6 +153,9 @@ export async function runProductionServer(
     child.once("close", (status, signal) => {
       childClosed = true;
       if (status !== null) {
+        if (status !== 0) {
+          reportFailure(`Command exited with status ${status}`);
+        }
         finish(status);
         return;
       }

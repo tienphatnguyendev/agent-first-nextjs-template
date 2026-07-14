@@ -22,13 +22,18 @@ module's private files.
 Every future module has four layers:
 
 1. `domain/` contains business rules and types. It does not import Next.js,
-   React, Prisma, platform code, or external service clients.
+   React, Prisma, generated code, platform code, Node.js built-ins, another
+   layer, or an external package.
 2. `application/` contains use cases and interfaces for required
-   infrastructure. It can import only the module's domain layer.
+   infrastructure. Its files can import the same module's application and
+   domain code. They can use another module only through its public `index.ts`.
+   They cannot import platform, generated, UI, infrastructure, Node.js
+   built-ins, or external packages.
 3. `infrastructure/` implements the application interfaces. It can import the
    application and domain layers and server code from `src/platform/`.
 4. `ui/` contains React components and server actions. It can call application
-   use cases and use the module's public types.
+   use cases and use the module's public types. It cannot import the
+   infrastructure layer directly.
 
 Dependencies point toward business rules: UI and infrastructure depend on the
 application layer, and the application layer depends on the domain layer. The
@@ -39,8 +44,8 @@ server-only environment, database, or logging code.
 ## Executable architecture checks
 
 Run `pnpm architecture` to check real source code and the architecture test
-fixtures. A fixture is a small, test-only source tree. Five fixtures contain an
-invalid import on purpose, and one fixture shows a valid public import. The
+fixtures. A fixture is a small, test-only source tree. Ten fixtures contain an
+invalid import on purpose, and two fixtures show valid import shapes. The
 normal `src/` scan does not include these fixtures.
 
 The checker enforces public module imports, layer direction, shared-code
@@ -48,6 +53,12 @@ independence, browser and server separation, one-way dependencies, and valid
 import paths. A one-way dependency means that code points in one direction and
 does not form a loop. Every failure names its rule and includes a `Repair:`
 instruction.
+
+A source-aware check also reads TypeScript syntax. Every file with a real
+top-level `"use client"` directive must use the `.client.*` filename suffix.
+Comments and unrelated strings do not trigger this rule. This filename makes
+the browser boundary visible to the dependency checker, including indirect
+imports.
 
 Use the smaller commands when you need focused feedback:
 

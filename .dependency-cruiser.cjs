@@ -29,6 +29,16 @@ module.exports = {
       to: { path: "(^|node_modules/)(next|react|@prisma/client)(/|$)" },
     },
     {
+      name: "no-domain-outside-layer",
+      severity: "error",
+      comment:
+        "Repair: keep domain code as plain TypeScript inside its own domain layer and pass outside work through application interfaces.",
+      from: { path: "(^|/)src/modules/([^/]+)/domain(/|$)" },
+      to: {
+        pathNot: ["(^|/)src/modules/$2/domain(/|$)"],
+      },
+    },
+    {
       name: "no-domain-outer-layer-imports",
       severity: "error",
       comment: "Repair: make outer layers depend on domain, never the reverse.",
@@ -46,6 +56,27 @@ module.exports = {
       to: {
         path: "(^|/)src/modules/[^/]+/(infrastructure|ui)(/|$)",
       },
+    },
+    {
+      name: "no-application-outside-layers",
+      severity: "error",
+      comment:
+        "Repair: keep application code inside its own application and domain layers, or use another module's public index.ts.",
+      from: { path: "(^|/)src/modules/([^/]+)/application(/|$)" },
+      to: {
+        pathNot: [
+          "(^|/)src/modules/$2/(application|domain)(/|$)",
+          "(^|/)src/modules/[^/]+/index\\.[cm]?[jt]sx?$",
+        ],
+      },
+    },
+    {
+      name: "no-ui-infrastructure-imports",
+      severity: "error",
+      comment:
+        "Repair: call an application use case instead of importing infrastructure from UI code.",
+      from: { path: "(^|/)src/modules/([^/]+)/ui(/|$)" },
+      to: { path: "(^|/)src/modules/$2/infrastructure(/|$)" },
     },
     {
       name: "no-shared-module-or-platform-imports",

@@ -39,7 +39,10 @@ export function assertLocalDirectUrl(value: string): void {
   if (
     !["postgres:", "postgresql:"].includes(url.protocol) ||
     url.hostname !== "127.0.0.1" ||
-    url.port !== "54322"
+    url.port !== "54322" ||
+    url.pathname !== "/postgres" ||
+    url.searchParams.size !== 1 ||
+    url.searchParams.get("schema") !== "public"
   ) {
     throw new Error(localDirectUrlError);
   }

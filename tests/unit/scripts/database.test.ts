@@ -37,6 +37,42 @@ describe("database lifecycle commands", () => {
     ).toThrow("DIRECT_URL must point to local Supabase on port 54322");
   });
 
+  it.each([
+    "postgresql://postgres:postgres@127.0.0.1:54322/other?schema=public",
+    "postgresql://postgres:postgres@127.0.0.1:54322/postgres",
+    "postgresql://postgres:postgres@127.0.0.1:54322/postgres?schema=private",
+    "postgresql://postgres:postgres@127.0.0.1:54322/postgres?schema=public&sslmode=disable",
+  ])(
+    "rejects a local URL outside the exact administrative target: %s",
+    (url) => {
+      expect(() => assertLocalDirectUrl(url)).toThrow(
+        "DIRECT_URL must point to local Supabase on port 54322",
+      );
+    },
+  );
+
+  it.each(["host", "hostaddr", "port", "socket", "service", "servicefile"])(
+    "rejects the endpoint-changing %s query parameter",
+    (parameter) => {
+      const url = `${localDirectUrl}&${parameter}=db.example.com`;
+
+      expect(() => assertLocalDirectUrl(url)).toThrow(
+        "DIRECT_URL must point to local Supabase on port 54322",
+      );
+      expect(() => buildDatabaseCommands("reset", [], url)).toThrow(
+        "DIRECT_URL must point to local Supabase on port 54322",
+      );
+    },
+  );
+
+  it("decodes query parameter names before it validates the allowlist", () => {
+    const url = `${localDirectUrl}&%68ost=db.example.com`;
+
+    expect(() => assertLocalDirectUrl(url)).toThrow(
+      "DIRECT_URL must point to local Supabase on port 54322",
+    );
+  });
+
   it("starts Docker and excludes every non-database Supabase service", () => {
     expect(buildDatabaseCommands("start", [], "")).toEqual(startCommands);
   });

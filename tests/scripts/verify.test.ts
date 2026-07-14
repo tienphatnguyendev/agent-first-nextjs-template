@@ -12,11 +12,7 @@ import { join } from "node:path";
 import { describe, expect, it, vi } from "vitest";
 
 import { prepareArtifacts } from "../../scripts/prepare-artifacts";
-import {
-  CHECKS,
-  createCommandRunner,
-  runVerification,
-} from "../../scripts/verify";
+import { createCommandRunner, runVerification } from "../../scripts/verify";
 
 describe("runVerification", () => {
   it("stops at the first failure and gives a repair command", () => {
@@ -39,7 +35,17 @@ describe("runVerification", () => {
       return 0;
     });
 
-    expect(calls).toEqual(CHECKS.map(({ script }) => script));
+    expect(calls).toEqual([
+      "docs:check",
+      "format:check",
+      "lint",
+      "architecture",
+      "typecheck",
+      "test:unit",
+      "test:integration",
+      "build",
+      "test:e2e:run",
+    ]);
   });
 });
 
@@ -112,6 +118,23 @@ describe("createCommandRunner", () => {
 });
 
 describe("prepareArtifacts", () => {
+  it("creates report directories when artifacts does not exist", () => {
+    const repositoryRoot = mkdtempSync(join(tmpdir(), "repository-artifacts-"));
+
+    try {
+      prepareArtifacts(repositoryRoot);
+
+      expect(
+        statSync(join(repositoryRoot, "artifacts/test-results")).isDirectory(),
+      ).toBe(true);
+      expect(
+        statSync(join(repositoryRoot, "artifacts/playwright")).isDirectory(),
+      ).toBe(true);
+    } finally {
+      rmSync(repositoryRoot, { recursive: true, force: true });
+    }
+  });
+
   it("creates report directories without deleting existing evidence", () => {
     const repositoryRoot = mkdtempSync(join(tmpdir(), "repository-artifacts-"));
     const existingReport = join(

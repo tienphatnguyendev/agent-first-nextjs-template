@@ -52,8 +52,8 @@ describe("delivery configuration", () => {
     expect(dockerfile).toMatch(/^USER\s+nextjs$/m);
     expect(dockerfile).toMatch(/^HEALTHCHECK\b/m);
     expect(dockerfile).toContain("/app/.next/standalone ./");
-    expect(dockerfile).toContain("/app/.next/static ./.next/static");
-    expect(dockerfile).toContain("/app/public ./public");
+    expect(dockerfile).not.toContain("/app/.next/static ./.next/static");
+    expect(dockerfile).not.toContain("/app/public ./public");
     expect(dockerfile).toMatch(/^EXPOSE\s+3000$/m);
     expect(dockerfile).toContain("http://127.0.0.1:3000/api/health");
     expect(dockerfile).toMatch(/^CMD \["node", "server\.js"\]$/m);
@@ -62,7 +62,7 @@ describe("delivery configuration", () => {
       dockerfile.indexOf("FROM node:24-bookworm-slim AS runner"),
     );
     const runnerCopies = runner.match(/^COPY\s+.*$/gm);
-    expect(runnerCopies).toHaveLength(3);
+    expect(runnerCopies).toHaveLength(1);
     expect(runner).not.toContain("postgresql://");
     expect(runner).not.toContain("apt-get");
     expect(runner).not.toContain("openssl");
@@ -116,6 +116,11 @@ describe("delivery configuration", () => {
         /@v\d+$/.test(match[1] ?? ""),
       ),
     ).toBe(true);
+    for (const job of [verify, container]) {
+      const checkout = workflowStep(job, "Check out repository");
+      expect(checkout).toContain("uses: actions/checkout@v4");
+      expect(checkout).toContain("persist-credentials: false");
+    }
     expect(verify).toContain("pnpm run artifacts:prepare");
     expect(verify).toContain("cp .env.example .env");
     expect(verify).toContain("set -o pipefail");
@@ -161,5 +166,6 @@ describe("delivery configuration", () => {
       "node --import tsx scripts/prepare-standalone.ts",
     );
     expect(packageJson.scripts?.start).toBe("node .next/standalone/server.js");
+    expect(packageJson.devDependencies?.["@types/node"]).toBe("^24.13.1");
   });
 });

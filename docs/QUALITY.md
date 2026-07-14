@@ -47,10 +47,11 @@ the prose remains factually current, so each code change must update affected
 documents.
 
 Delivery policy tests check the Node.js 24 multi-stage image, standalone output,
-non-root runtime user, health check, Docker ignore rules, read-only CI access,
-job timeouts, failure evidence, and repository-owned CI commands. The container
-policy command also inspects the built image directly and requires the exact
-runtime user `nextjs`.
+single-copy runtime stage, non-root runtime user, health check, Docker ignore
+rules, checkout credential isolation, read-only CI access, job timeouts,
+failure evidence, and repository-owned CI commands. The container policy
+command also inspects the built image directly and requires the exact runtime
+user `nextjs`.
 
 ## Final foundation acceptance
 
@@ -75,7 +76,7 @@ The completed foundation maps to the approved acceptance criteria as follows:
 | The neutral shell loads in a browser.                                 | The Playwright shell test checks the production page and heading.                                      |
 | Health reports database availability safely.                          | Unit, integration, and Playwright tests check the safe body and correlation header.                    |
 | Prisma manages an empty migration history.                            | Setup, reset guards, integration tests, and the baseline migration use only `prisma/migrations/`.      |
-| Architecture tests reject invalid imports with repair guidance.       | Six fixture cases cover valid public imports and five invalid boundary cases.                          |
+| Architecture tests reject invalid imports with repair guidance.       | Twelve fixture cases cover two valid import shapes and ten invalid boundary cases.                     |
 | One ordered command verifies a prepared checkout.                     | `pnpm run verify` runs all nine approved checks and stops at the first failure.                        |
 | Playwright tests the production build.                                | The web server wrapper starts `.next/standalone/server.js` and retains browser evidence on failure.    |
 | CI follows the local verification path and builds the image.          | The policy-tested workflow calls repository setup, verification, build, and image inspection commands. |
@@ -83,20 +84,22 @@ The completed foundation maps to the approved acceptance criteria as follows:
 | Documentation checks detect missing files and broken links.           | Unit fixtures and `pnpm docs:check` cover required documents, indexes, links, and plan sections.       |
 | The foundation contains no product feature or extra Supabase service. | The source tree has no product module, and local configuration enables PostgreSQL only.                |
 
-The isolated-worktree acceptance run on 2026-07-14 produced these results:
+The final hardening acceptance run in the isolated worktree on 2026-07-14
+produced these results:
 
 - Frozen dependency installation passed without changing the lockfile.
 - `pnpm run setup` passed. Docker showed only
   `supabase_db_agentic-coding-os`; every non-database Supabase service remained
   stopped.
-- `pnpm run verify` passed all nine checks in the approved order: 107 unit
-  tests, 3 integration tests, the production build, and 2 Playwright tests
-  passed. The standalone server produced no `next start` compatibility warning.
+- `pnpm run verify` passed all nine checks in the approved order: 12
+  architecture fixtures, 129 unit tests, 3 integration tests, the production
+  build, and 2 Playwright tests passed. The standalone server produced no
+  launcher compatibility warning.
 - `pnpm run container:build` passed without a Prisma OpenSSL warning.
 - `pnpm run container:check` passed, and direct image inspection returned the
   exact runtime user `nextjs`.
-- `git diff --check` passed. After the Task 10 commit, `git status --short`
-  returned no tracked or untracked file changes.
+- `git diff --check` passed. After the final hardening commit,
+  `git status --short` returned no tracked or untracked file changes.
 
 This foundation does not add a sample business module, product-specific tests,
 performance or load tests, automatic pull-request merging, or production

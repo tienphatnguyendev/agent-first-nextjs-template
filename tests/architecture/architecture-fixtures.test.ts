@@ -32,12 +32,23 @@ describe("architecture fixtures", () => {
     expect(result.exitCode, result.output).toBe(0);
   }, 20_000);
 
+  it("allows imports within the documented module layers", () => {
+    const result = runFixture("valid-layer-imports");
+
+    expect(result.exitCode, result.output).toBe(0);
+  }, 20_000);
+
   it.each([
     ["app-private-import", "no-app-private-module-imports"],
     ["cross-module-private-import", "no-private-cross-module-imports"],
     ["domain-framework-import", "no-domain-framework-imports"],
     ["shared-platform-import", "no-shared-module-or-platform-imports"],
     ["client-server-import", "no-client-server-imports"],
+    ["client-directive-filename", "client-directive-requires-client-filename"],
+    ["domain-platform-import", "no-domain-outside-layer"],
+    ["domain-generated-prisma-import", "no-domain-outside-layer"],
+    ["application-platform-import", "no-application-outside-layers"],
+    ["ui-infrastructure-import", "no-ui-infrastructure-imports"],
   ])(
     "rejects %s with %s and repair guidance",
     (fixture, rule) => {
